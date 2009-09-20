@@ -33,6 +33,7 @@
 
 #include <gdk/gdk.h>
 #include <glib.h>
+#include <glib/gstdio.h>
 #include <glib/gprintf.h>
 #include <libsoup/soup.h>
 
@@ -349,7 +350,7 @@ replace_map_uri(OsmGpsMap *map, const gchar *uri, int zoom, int x, int y)
     url = g_strdup(uri);
     while (i < URI_FLAG_END)
     {
-        char *s;
+        char *s = NULL;
         char *old;
 
         old = url;
@@ -541,7 +542,7 @@ osm_gps_map_draw_gps_point (OsmGpsMap *map)
         int x, y;
         int r = priv->ui_gps_point_inner_radius;
         int r2 = priv->ui_gps_point_outer_radius;
-        int lw = priv->ui_gps_track_width;
+        // int lw = priv->ui_gps_track_width;
         int mr = MAX(r,r2);
 
         map_x0 = priv->map_x - EXTRA_BORDER;
@@ -787,7 +788,7 @@ osm_gps_map_load_cached_tile (OsmGpsMap *map, int zoom, int x, int y)
 {
     OsmGpsMapPrivate *priv = map->priv;
     gchar *filename;
-    GdkPixbuf *pixbuf;
+    GdkPixbuf *pixbuf = NULL;
     OsmCachedTile *tile;
 
     filename = g_strdup_printf("%s%c%d%c%d%c%d.%s",
@@ -1214,13 +1215,29 @@ osm_gps_map_init (OsmGpsMap *object)
     g_log_set_handler (G_LOG_DOMAIN, G_LOG_LEVEL_MASK, my_log_handler, NULL);
 }
 
+#ifndef G_CHECKSUM_MD5
+/* simple hash algorithm hack if md5 is not present */
+static char *simple_hash(char *str) {
+    union {
+        char str[4];
+        gulong val;
+    } hash = { .val = 0x55555555 };
+
+    while(*str) {
+        hash.str[(int)str & 3] ^= *str;
+        str++;
+    }
+    return g_strdup_printf("%08lX", hash.val);
+}
+#endif
+
 static GObject *
 osm_gps_map_constructor (GType gtype, guint n_properties, GObjectConstructParam *properties)
 {
     GObject *object;
     OsmGpsMapPrivate *priv;
     OsmGpsMap *map;
-    const char *uri, *name;
+    const char *uri;
 
     //Always chain up to the parent constructor
     object = G_OBJECT_CLASS(osm_gps_map_parent_class)->constructor(gtype, n_properties, properties);
@@ -2146,7 +2163,7 @@ int
 osm_gps_map_set_zoom (OsmGpsMap *map, int zoom)
 {
     int zoom_old;
-    double factor;
+    double factor = 0.0;
     int width_center, height_center;
     OsmGpsMapPrivate *priv;
 
