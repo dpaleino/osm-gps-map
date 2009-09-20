@@ -176,7 +176,11 @@ static gchar    *replace_map_uri(OsmGpsMap *map, const gchar *uri, int zoom, int
 static void     osm_gps_map_print_images (OsmGpsMap *map);
 static void     osm_gps_map_draw_gps_point (OsmGpsMap *map);
 static void     osm_gps_map_blit_tile(OsmGpsMap *map, GdkPixbuf *pixbuf, int offset_x, int offset_y);
+#ifdef LIBSOUP22
+static void     osm_gps_map_tile_download_complete (SoupMessage *msg, gpointer user_data);
+#else
 static void     osm_gps_map_tile_download_complete (SoupSession *session, SoupMessage *msg, gpointer user_data);
+#endif
 static void     osm_gps_map_download_tile (OsmGpsMap *map, int zoom, int x, int y, gboolean redraw);
 static void     osm_gps_map_load_tile (OsmGpsMap *map, int zoom, int x, int y, int offset_x, int offset_y);
 static void     osm_gps_map_fill_tiles_pixel (OsmGpsMap *map);
@@ -646,52 +650,111 @@ osm_gps_map_blit_tile(OsmGpsMap *map, GdkPixbuf *pixbuf, int offset_x, int offse
                      GDK_RGB_DITHER_NONE, 0, 0);
 }
 
+/* libsoup-2.2 and libsoup-2.4 use different ways to store the body data */
+#ifdef LIBSOUP22
+#define  soup_message_headers_append(a,b,c) soup_message_add_header(a,b,c)
+#define MSG_RESPONSE_BODY(a)    ((a)->response.body)
+#define MSG_RESPONSE_LEN(a)     ((a)->response.length)
+#define MSG_RESPONSE_LEN_FORMAT "%u"
+#else
+#define MSG_RESPONSE_BODY(a)    ((a)->response_body->data)
+#define MSG_RESPONSE_LEN(a)     ((a)->response_body->length)
+#define MSG_RESPONSE_LEN_FORMAT "%lld"
+#endif
+
+#ifdef LIBSOUP22
+static void
+osm_gps_map_tile_download_complete (SoupMessage *msg, gpointer user_data)
+#else
 static void
 osm_gps_map_tile_download_complete (SoupSession *session, SoupMessage *msg, gpointer user_data)
+#endif
 {
     FILE *file;
     tile_download_t *dl = (tile_download_t *)user_data;
     OsmGpsMap *map = OSM_GPS_MAP(dl->map);
     OsmGpsMapPrivate *priv = map->priv;
+    gboolean file_saved = FALSE;
 
     if (SOUP_STATUS_IS_SUCCESSFUL (msg->status_code))
     {
-        if (g_mkdir_with_parents(dl->folder,0700) == 0)
+        /* save tile into cachedir if one has been specified */
+        if (priv->cache_dir)
         {
-            file = g_fopen(dl->filename, "wb");
-            if (file != NULL)
+            if (g_mkdir_with_parents(dl->folder,0700) == 0)
             {
-                fwrite (msg->response_body->data, 1, msg->response_body->length, file);
-                g_debug("Wrote %lld bytes to %s", msg->response_body->length, dl->filename);
-                fclose (file);
-
-                if (dl->redraw)
+                file = g_fopen(dl->filename, "wb");
+                if (file != NULL)
                 {
-                    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file (dl->filename, NULL);
+                    fwrite (MSG_RESPONSE_BODY(msg), 1, MSG_RESPONSE_LEN(msg), file);
+                    file_saved = TRUE;
+                    g_debug("Wrote "MSG_RESPONSE_LEN_FORMAT" bytes to %s", MSG_RESPONSE_LEN(msg), dl->filename);
+                    fclose (file);
 
-                    /* Store the tile into the cache */
-                    if (G_LIKELY (pixbuf))
-                    {
-                        OsmCachedTile *tile = g_slice_new (OsmCachedTile);
-                        tile->pixbuf = pixbuf;
-                        tile->redraw_cycle = priv->redraw_cycle;
-                        /* if the tile is already in the cache (it could be one
-                         * rendered from another zoom level), it will be
-                         * overwritten */
-                        g_hash_table_insert (priv->tile_cache, dl->filename, tile);
-                        /* NULL-ify dl->filename so that it won't be freed, as
-                         * we are using it as a key in the hash table */
-                        dl->filename = NULL;
-                    }
-                    osm_gps_map_map_redraw_idle (map);
                 }
             }
-        }
-        else
-        {
-            g_warning("Error creating tile download directory: %s", dl->folder);
+            else
+            {
+                g_warning("Error creating tile download directory: %s", dl->folder);
+            }
         }
 
+        if (dl->redraw)
+        {
+            GdkPixbuf *pixbuf = NULL;
+
+            /* if the file was actually stored on disk, we can simply */
+            /* load and decode it from that file */
+            if (priv->cache_dir)
+            {
+                if (file_saved)
+                {
+                    pixbuf = gdk_pixbuf_new_from_file (dl->filename, NULL);
+                }
+            }
+            else
+            {
+                GdkPixbufLoader *loader;
+                char *extension = strrchr (dl->filename, '.');
+
+                /* parse file directly from memory */
+                if (extension)
+                {
+                    loader = gdk_pixbuf_loader_new_with_type (extension+1, NULL);
+                    if (!gdk_pixbuf_loader_write (loader, (unsigned char*)MSG_RESPONSE_BODY(msg), MSG_RESPONSE_LEN(msg), NULL))
+                    {
+                        g_warning("Error: Decoding of image failed");
+                    }
+                    gdk_pixbuf_loader_close(loader, NULL);
+
+                    pixbuf = gdk_pixbuf_loader_get_pixbuf(loader);
+
+                    /* give up loader but keep the pixbuf */
+                    g_object_ref(pixbuf);
+                    g_object_unref(loader);
+                }
+                else
+                {
+                    g_warning("Error: Unable to determine image file format");
+                }
+            }
+                
+            /* Store the tile into the cache */
+            if (G_LIKELY (pixbuf))
+            {
+                OsmCachedTile *tile = g_slice_new (OsmCachedTile);
+                tile->pixbuf = pixbuf;
+                tile->redraw_cycle = priv->redraw_cycle;
+                /* if the tile is already in the cache (it could be one
+                 * rendered from another zoom level), it will be
+                 * overwritten */
+                g_hash_table_insert (priv->tile_cache, dl->filename, tile);
+                /* NULL-ify dl->filename so that it won't be freed, as
+                 * we are using it as a key in the hash table */
+                dl->filename = NULL;
+            }
+            osm_gps_map_map_redraw_idle (map);
+        }
         g_hash_table_remove(priv->tile_queue, dl->uri);
 
         g_free(dl->uri);
@@ -713,7 +776,11 @@ osm_gps_map_tile_download_complete (SoupSession *session, SoupMessage *msg, gpoi
         }
         else
         {
+#ifdef LIBSOUP22
+            soup_session_requeue_message(dl->session, msg);
+#else
             soup_session_requeue_message(session, msg);
+#endif
             return;
         }
     }
@@ -730,6 +797,10 @@ osm_gps_map_download_tile (OsmGpsMap *map, int zoom, int x, int y, gboolean redr
 
     //calculate the uri to download
     dl->uri = replace_map_uri(map, priv->repo_uri, zoom, x, y);
+
+#ifdef LIBSOUP22
+    dl->session = priv->soup_session;
+#endif
 
     //check the tile has not already been queued for download,
     //or has been attempted, and its missing
@@ -1191,11 +1262,16 @@ osm_gps_map_init (OsmGpsMap *object)
 
     priv->map_source = -1;
 
+#ifndef LIBSOUP22
     //Change naumber of concurrent connections option?
     priv->soup_session = soup_session_async_new_with_options(
                                                              SOUP_SESSION_USER_AGENT,
                                                              "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11",
                                                              NULL);
+#else
+    /* libsoup-2.2 seems not to be able to set the user agent */
+    priv->soup_session = soup_session_async_new();
+#endif
 
     //Hash table which maps tile d/l URIs to SoupMessage requests
     priv->tile_queue = g_hash_table_new (g_str_hash, g_str_equal);
@@ -1374,16 +1450,21 @@ osm_gps_map_set_property (GObject *object, guint prop_id, const GValue *value, G
             break;
         case PROP_PROXY_URI:
             if ( g_value_get_string(value) ) {
-                GValue val = {0};
-
                 priv->proxy_uri = g_value_dup_string (value);
                 g_debug("Setting proxy server: %s", priv->proxy_uri);
+
+#ifndef LIBSOUP22
+                GValue val = {0};
 
                 SoupURI* uri = soup_uri_new(priv->proxy_uri);
                 g_value_init(&val, SOUP_TYPE_URI);
                 g_value_take_boxed(&val, uri);
 
                 g_object_set_property(G_OBJECT(priv->soup_session),SOUP_SESSION_PROXY_URI,&val);
+#else
+                SoupUri* uri = soup_uri_new(priv->proxy_uri);
+                g_object_set(G_OBJECT(priv->soup_session), SOUP_SESSION_PROXY_URI, uri, NULL);
+#endif
             } else
                 priv->proxy_uri = NULL;
 
@@ -1391,12 +1472,6 @@ osm_gps_map_set_property (GObject *object, guint prop_id, const GValue *value, G
         case PROP_TILE_CACHE_DIR:
             if ( g_value_get_string(value) )
                 priv->cache_dir = g_value_dup_string (value);
-            else {
-                priv->cache_dir = g_build_filename(
-                                    g_get_tmp_dir(),
-                                    "osmgpsmap",
-                                    NULL);
-            }
             break;
         case PROP_TILE_CACHE_DIR_IS_FULL_PATH:
             priv->cache_dir_is_full_path = g_value_get_boolean (value);
