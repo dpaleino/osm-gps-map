@@ -900,7 +900,10 @@ osm_gps_map_load_tile (OsmGpsMap *map, int zoom, int x, int y, int offset_x, int
                 y,
                 priv->image_format);
 
-    pixbuf = gdk_pixbuf_new_from_file (filename, NULL);
+    /* try to get file from internal cache first */
+    if(!(pixbuf = osm_gps_map_load_cached_tile(map, zoom, x, y)))
+        pixbuf = gdk_pixbuf_new_from_file (filename, NULL);
+
     if(pixbuf)
     {
         g_debug("Found tile %s", filename);
@@ -1269,7 +1272,11 @@ osm_gps_map_constructor (GType gtype, guint n_properties, GObjectConstructParam 
     }
 
     if (!priv->cache_dir_is_full_path) {
+#ifdef G_CHECKSUM_MD5
         char *md5 = g_compute_checksum_for_string (G_CHECKSUM_MD5, priv->repo_uri, -1);
+#else
+        char *md5 = simple_hash(priv->repo_uri);
+#endif
 
         if (priv->cache_dir) {
             char *old = priv->cache_dir;
