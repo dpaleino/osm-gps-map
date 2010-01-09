@@ -31,7 +31,9 @@ libosmgpsmap_la_SOURCES = \
 	converter.c \
 	osm-gps-map.c \
 	osm-gps-map-osd-classic.c \
+	osd-utils.c \
 	osm-gps-map-osd.c
+
 
 libosmgpsmap_la_CFLAGS = \
 	-DG_LOG_DOMAIN=\"OsmGpsMap\"
@@ -44,6 +46,7 @@ libosmgpsmapinc_HEADERS = \
 
 noinst_HEADERS = \
 	converter.h \
+	osd-utils.h \
 	osm-gps-map-types.h
 
 EXTRA_DIST = \

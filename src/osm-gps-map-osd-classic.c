@@ -20,6 +20,7 @@
 
 #include <math.h>
 #include <cairo.h>
+#include "osd-utils.h"
 #include "osm-gps-map-osd-classic.h"
 
 G_DEFINE_TYPE (OsmGpsMapOsdClassic, osm_gps_map_osd_classic, OSM_TYPE_GPS_MAP_OSD)
@@ -29,9 +30,15 @@ typedef struct _OsdScale {
     int zoom;
 } OsdScale_t;
 
+typedef struct _OsdCoordinates {
+    cairo_surface_t *surface;
+    float lat, lon;
+} OsdCoordinates_t;
+
 struct _OsmGpsMapOsdClassicPrivate
 {
-    OsdScale_t      *scale;
+    OsdScale_t          *scale;
+    OsdCoordinates_t    *coordinates;
 };
 
 static void                 osm_gps_map_osd_classic_render   (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
@@ -40,6 +47,8 @@ static gboolean             osm_gps_map_osd_classic_busy     (OsmGpsMapOsdClassi
 
 static void                 scale_render(OsmGpsMap *map, OsdScale_t *scale);
 static void                 scale_draw(OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr);
+static void                 coordinates_render(OsmGpsMap *map, OsdCoordinates_t *coordinates);
+static void                 coordinates_draw(OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr);
 
 //FIXME: These should be goject properties
 #define OSD_SCALE_FONT_SIZE (12.0)
@@ -47,6 +56,17 @@ static void                 scale_draw(OsdScale_t *scale, GtkAllocation *allocat
 #define OSD_SCALE_H   (5*OSD_SCALE_FONT_SIZE/2)
 #define OSD_X         (10)
 #define OSD_Y         (10)
+
+#define OSD_SCALE_H2   (OSD_SCALE_H/2)
+#define OSD_SCALE_TICK (2*OSD_SCALE_FONT_SIZE/3)
+#define OSD_SCALE_M    (OSD_SCALE_H2 - OSD_SCALE_TICK)
+#define OSD_SCALE_I    (OSD_SCALE_H2 + OSD_SCALE_TICK)
+#define OSD_SCALE_FD   (OSD_SCALE_FONT_SIZE/4)
+
+#define OSD_COORDINATES_FONT_SIZE (12.0)
+#define OSD_COORDINATES_OFFSET (OSD_COORDINATES_FONT_SIZE/6)
+#define OSD_COORDINATES_W  (8*OSD_COORDINATES_FONT_SIZE+2*OSD_COORDINATES_OFFSET)
+#define OSD_COORDINATES_H  (2*OSD_COORDINATES_FONT_SIZE+2*OSD_COORDINATES_OFFSET+OSD_COORDINATES_FONT_SIZE/4)
 
 static void
 osm_gps_map_osd_classic_get_property (GObject    *object,
@@ -82,14 +102,32 @@ osm_gps_map_osd_classic_constructor (GType gtype, guint n_properties, GObjectCon
     object = G_OBJECT_CLASS(osm_gps_map_osd_classic_parent_class)->constructor(gtype, n_properties, properties);
     priv = OSM_GPS_MAP_OSD_CLASSIC(object)->priv;
 
+    priv->scale = g_new0(OsdScale_t, 1);
     priv->scale->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, OSD_SCALE_W, OSD_SCALE_H);
+    priv->scale->zoom = -1;
+
+    priv->coordinates = g_new0(OsdCoordinates_t, 1);
+    priv->coordinates->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, OSD_COORDINATES_W, OSD_COORDINATES_H);
+    priv->coordinates->lat = priv->coordinates->lon = OSM_GPS_MAP_INVALID;
 
     return object;
 }
 
+#define OSD_STRUCT_DESTROY(_x)                                  \
+    if ((_x)) {                                                 \
+        if ((_x)->surface)                                      \
+            cairo_surface_destroy((_x)->surface);               \
+        g_free((_x));                                           \
+    }
+
 static void
 osm_gps_map_osd_classic_finalize (GObject *object)
 {
+    OsmGpsMapOsdClassicPrivate *priv = OSM_GPS_MAP_OSD_CLASSIC(object)->priv;
+
+    OSD_STRUCT_DESTROY(priv->scale)
+    OSD_STRUCT_DESTROY(priv->coordinates)
+
 	G_OBJECT_CLASS (osm_gps_map_osd_classic_parent_class)->finalize (object);
 }
 
@@ -117,8 +155,6 @@ osm_gps_map_osd_classic_init (OsmGpsMapOsdClassic *self)
 	self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self,
 	                                          OSM_TYPE_GPS_MAP_OSD_CLASSIC,
 	                                          OsmGpsMapOsdClassicPrivate);
-    self->priv->scale = g_new0(OsdScale_t, 1);
-    self->priv->scale->zoom = -1;
 }
 
 static void
@@ -131,6 +167,7 @@ osm_gps_map_osd_classic_render (OsmGpsMapOsdClassic *self,
     priv = self->priv;
 
     scale_render(map, priv->scale);
+    coordinates_render(map, priv->coordinates);
 
 }
 
@@ -146,7 +183,9 @@ osm_gps_map_osd_classic_draw (OsmGpsMapOsdClassic *self,
     priv = self->priv;
 
     cr = gdk_cairo_create(drawable);
+
     scale_draw(priv->scale, allocation, cr);
+    coordinates_draw(priv->coordinates, allocation, cr);
 
     cairo_destroy(cr);
 }
@@ -169,13 +208,6 @@ osm_gps_map_osd_classic_new (void)
 {
 	return g_object_new (OSM_TYPE_GPS_MAP_OSD_CLASSIC, NULL);
 }
-
-/* various parameters used to create the scale */
-#define OSD_SCALE_H2   (OSD_SCALE_H/2)
-#define OSD_SCALE_TICK (2*OSD_SCALE_FONT_SIZE/3)
-#define OSD_SCALE_M    (OSD_SCALE_H2 - OSD_SCALE_TICK)
-#define OSD_SCALE_I    (OSD_SCALE_H2 + OSD_SCALE_TICK)
-#define OSD_SCALE_FD   (OSD_SCALE_FONT_SIZE/4)
 
 static void
 scale_render(OsmGpsMap *map, OsdScale_t *scale)
@@ -320,4 +352,67 @@ scale_draw(OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr)
     cairo_set_source_surface(cr, scale->surface, x, y);
     cairo_paint(cr);
 }
+
+static void
+coordinates_render(OsmGpsMap *map, OsdCoordinates_t *coordinates)
+{
+    if(!coordinates->surface)
+        return;
+
+    /* get current map position */
+    gfloat lat, lon;
+    g_object_get(G_OBJECT(map), "latitude", &lat, "longitude", &lon, NULL);
+
+    /* check if position has changed enough to require redraw */
+    if(!isnan(coordinates->lat) && !isnan(coordinates->lon))
+        /* 1/60000 == 1/1000 minute */
+        if((fabsf(lat - coordinates->lat) < 1/60000) &&
+           (fabsf(lon - coordinates->lon) < 1/60000))
+            return;
+
+    coordinates->lat = lat;
+    coordinates->lon = lon;
+
+    /* first fill with transparency */
+
+    g_assert(coordinates->surface);
+    cairo_t *cr = cairo_create(coordinates->surface);
+    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+    //    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.5);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.0);
+    cairo_paint(cr);
+    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+
+    cairo_select_font_face (cr, "Sans",
+                            CAIRO_FONT_SLANT_NORMAL,
+                            CAIRO_FONT_WEIGHT_BOLD);
+    cairo_set_font_size (cr, OSD_COORDINATES_FONT_SIZE);
+
+    char *latitude = osd_latitude_str(lat);
+    char *longitude = osd_longitude_str(lon);
+    
+    int y = OSD_COORDINATES_OFFSET;
+    y = osd_render_centered_text(cr, y, OSD_COORDINATES_W, OSD_COORDINATES_FONT_SIZE, latitude);
+    y = osd_render_centered_text(cr, y, OSD_COORDINATES_W, OSD_COORDINATES_FONT_SIZE, longitude);
+    
+    g_free(latitude);
+    g_free(longitude);
+
+    cairo_destroy(cr);
+}
+
+static void
+coordinates_draw(OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr)
+{
+    gint x,y;
+
+    x = -OSD_X;
+    y = -OSD_Y;
+    if(x < 0) x += allocation->width - OSD_COORDINATES_W;
+    if(y < 0) y += allocation->height - OSD_COORDINATES_H;
+
+    cairo_set_source_surface(cr, coordinates->surface, x, y);
+    cairo_paint(cr);
+}
+
 
