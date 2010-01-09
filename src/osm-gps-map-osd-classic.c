@@ -47,9 +47,10 @@ struct _OsmGpsMapOsdClassicPrivate
     OsdCrosshair_t      *crosshair;
 };
 
-static void                 osm_gps_map_osd_classic_render   (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
-static void                 osm_gps_map_osd_classic_draw     (OsmGpsMapOsdClassic *self, GtkAllocation *allocation, GdkDrawable *drawable);
-static gboolean             osm_gps_map_osd_classic_busy     (OsmGpsMapOsdClassic *self);
+static void                 osm_gps_map_osd_classic_render       (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
+static void                 osm_gps_map_osd_classic_draw         (OsmGpsMapOsdClassic *self, GtkAllocation *allocation, GdkDrawable *drawable);
+static gboolean             osm_gps_map_osd_classic_busy         (OsmGpsMapOsdClassic *self);
+static gboolean             osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self, GdkEventButton *event);
 
 static void                 scale_render(OsmGpsMap *map, OsdScale_t *scale);
 static void                 scale_draw(OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr);
@@ -166,6 +167,7 @@ osm_gps_map_osd_classic_class_init (OsmGpsMapOsdClassicClass *klass)
 	parent->render = osm_gps_map_osd_classic_render;
 	parent->draw = osm_gps_map_osd_classic_draw;
 	parent->busy = osm_gps_map_osd_classic_busy;
+	parent->button_press = osm_gps_map_osd_classic_button_press;
 }
 
 static void
@@ -215,6 +217,13 @@ static gboolean
 osm_gps_map_osd_classic_busy (OsmGpsMapOsdClassic *self)
 {
 	return FALSE;
+}
+
+static gboolean
+osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
+                              GdkEventButton *event)
+{
+    return FALSE;
 }
 
 /**

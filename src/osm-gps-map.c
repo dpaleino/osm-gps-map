@@ -1708,6 +1708,9 @@ osm_gps_map_button_press (GtkWidget *widget, GdkEventButton *event)
 {
     OsmGpsMapPrivate *priv = OSM_GPS_MAP_PRIVATE(widget);
 
+    if (priv->osd && osm_gps_map_osd_button_press(priv->osd, event))
+        return FALSE;
+
     priv->drag_counter = 0;
     priv->drag_start_mouse_x = (int) event->x;
     priv->drag_start_mouse_y = (int) event->y;

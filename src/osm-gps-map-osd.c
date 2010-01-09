@@ -90,7 +90,7 @@ osm_gps_map_osd_draw (OsmGpsMapOsd *self,
 /**
  * osm_gps_map_osd_busy:
  * @self: A #OsmGpsMapOsd
- *
+ * @return: TRUE if busy animating
  *
  */
 gboolean
@@ -99,5 +99,17 @@ osm_gps_map_osd_busy (OsmGpsMapOsd *self)
 	return OSM_GPS_MAP_OSD_GET_CLASS (self)->busy(self);
 }
 
+/**
+ * osm_gps_map_osd_render:
+ * @self: A #OsmGpsMapOsd
+ * @return: TRUE if we handle the event
+ *
+ */
+gboolean
+osm_gps_map_osd_button_press (OsmGpsMapOsd *self,
+                              GdkEventButton *event)
+{
+	OSM_GPS_MAP_OSD_GET_CLASS (self)->button_press(self, event);
+}
 
 
