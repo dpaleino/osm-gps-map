@@ -126,6 +126,7 @@ void osm_gps_map_geographic_to_screen (OsmGpsMap *map,
 void osm_gps_map_scroll (OsmGpsMap *map, gint dx, gint dy);
 float osm_gps_map_get_scale(OsmGpsMap *map);
 void osm_gps_map_set_keyboard_shortcut(OsmGpsMap *map, OsmGpsMapKey_t key, guint keyval);
+void osm_gps_map_enable_osd(OsmGpsMap *map, void *osd);
 
 G_END_DECLS
 

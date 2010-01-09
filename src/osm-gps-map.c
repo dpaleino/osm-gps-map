@@ -41,6 +41,7 @@
 #include "converter.h"
 #include "osm-gps-map-types.h"
 #include "osm-gps-map.h"
+#include "osm-gps-map-osd.h"
 
 #define ENABLE_DEBUG 1
 
@@ -110,6 +111,9 @@ struct _OsmGpsMapPrivate
 
     //The tile painted when one cannot be found
     GdkPixbuf *null_tile;
+
+    //The OSD
+    OsmGpsMapOsd *osd;
 
     //For tracking click and drag
     int drag_counter;
@@ -1157,6 +1161,12 @@ osm_gps_map_map_redraw (OsmGpsMap *map)
 
     priv->idle_map_redraw = 0;
 
+    /* don't redraw the entire map while the OSD is doing */
+    /* some animation or the like. This is to keep the animation */
+    /* fluid */
+    if (priv->osd && osm_gps_map_osd_busy(priv->osd))
+        return FALSE;
+
     /* the motion_notify handler uses priv->pixmap to redraw the area; if we
      * change it while we are dragging, we will end up showing it in the wrong
      * place. This could be fixed by carefully recompute the coordinates, but
@@ -1183,6 +1193,9 @@ osm_gps_map_map_redraw (OsmGpsMap *map)
     osm_gps_map_print_tracks(map);
     osm_gps_map_draw_gps_point(map);
     osm_gps_map_print_images(map);
+
+    if (priv->osd)
+        osm_gps_map_osd_render (priv->osd, map);
 
     osm_gps_map_purge_cache(map);
     gtk_widget_queue_draw (GTK_WIDGET (map));
@@ -1888,6 +1901,9 @@ osm_gps_map_expose (GtkWidget *widget, GdkEventExpose  *event)
                                 -priv->drag_mouse_dy - EXTRA_BORDER);
         }
     }
+
+    if (priv->osd)
+        osm_gps_map_osd_draw(priv->osd, &(widget->allocation), drawable);
 
     return FALSE;
 }
@@ -2630,5 +2646,13 @@ void osm_gps_map_set_keyboard_shortcut(OsmGpsMap *map, OsmGpsMapKey_t key, guint
 
     map->priv->keybindings[key] = keyval;
     map->priv->keybindings_enabled = TRUE;
+}
+
+void osm_gps_map_enable_osd(OsmGpsMap *map, void *osd)
+{
+    g_return_if_fail (OSM_IS_GPS_MAP (map));
+    g_return_if_fail (OSM_IS_GPS_MAP_OSD (osd));
+
+    map->priv->osd = osd;
 }
 

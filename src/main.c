@@ -24,6 +24,7 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include "osm-gps-map.h"
+#include "osm-gps-map-osd-classic.h"
 
 static OsmGpsMapSource_t map_provider = 0;
 static gboolean default_cache = FALSE;
@@ -183,7 +184,10 @@ main (int argc, char **argv)
     GtkWidget *zoomOutbutton;
     GtkWidget *homeButton;
     GtkWidget *cacheButton;
+
     GtkWidget *map;
+    OsmGpsMapOsdClassic *osd;
+
     const char *repo_uri;
     const char *friendly_name;
     char *cachedir;
@@ -240,6 +244,9 @@ main (int argc, char **argv)
                         "tile-cache",cachedir,
                         "proxy-uri",g_getenv("http_proxy"),
                         NULL);
+
+    osd = osm_gps_map_osd_classic_new();
+    osm_gps_map_enable_osd(OSM_GPS_MAP(map), osd);
 
     //Enable keyboard navigation
     osm_gps_map_set_keyboard_shortcut(map, OSM_GPS_MAP_KEY_FULLSCREEN, GDK_F11);

@@ -29,14 +29,18 @@ lib_LTLIBRARIES = \
 
 libosmgpsmap_la_SOURCES = \
 	converter.c \
-	osm-gps-map.c
+	osm-gps-map.c \
+	osm-gps-map-osd-classic.c \
+	osm-gps-map-osd.c
 
 libosmgpsmap_la_CFLAGS = \
 	-DG_LOG_DOMAIN=\"OsmGpsMap\"
 
 libosmgpsmapincdir = $(includedir)/osmgpsmap
 libosmgpsmapinc_HEADERS = \
-	osm-gps-map.h
+	osm-gps-map.h \
+	osm-gps-map-osd.h \
+	osm-gps-map-osd-classic.h
 
 noinst_HEADERS = \
 	converter.h \
