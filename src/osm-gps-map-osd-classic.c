@@ -35,10 +35,16 @@ typedef struct _OsdCoordinates {
     float lat, lon;
 } OsdCoordinates_t;
 
+typedef struct _OsdCorosshair {
+    cairo_surface_t *surface;
+    gboolean rendered;
+} OsdCrosshair_t;
+
 struct _OsmGpsMapOsdClassicPrivate
 {
     OsdScale_t          *scale;
     OsdCoordinates_t    *coordinates;
+    OsdCrosshair_t      *crosshair;
 };
 
 static void                 osm_gps_map_osd_classic_render   (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
@@ -49,6 +55,8 @@ static void                 scale_render(OsmGpsMap *map, OsdScale_t *scale);
 static void                 scale_draw(OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr);
 static void                 coordinates_render(OsmGpsMap *map, OsdCoordinates_t *coordinates);
 static void                 coordinates_draw(OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr);
+static void                 crosshair_render(OsmGpsMap *map, OsdCrosshair_t *crosshair);
+static void                 crosshair_draw(OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr);
 
 //FIXME: These should be goject properties
 #define OSD_SCALE_FONT_SIZE (12.0)
@@ -67,6 +75,12 @@ static void                 coordinates_draw(OsdCoordinates_t *coordinates, GtkA
 #define OSD_COORDINATES_OFFSET (OSD_COORDINATES_FONT_SIZE/6)
 #define OSD_COORDINATES_W  (8*OSD_COORDINATES_FONT_SIZE+2*OSD_COORDINATES_OFFSET)
 #define OSD_COORDINATES_H  (2*OSD_COORDINATES_FONT_SIZE+2*OSD_COORDINATES_OFFSET+OSD_COORDINATES_FONT_SIZE/4)
+
+#define OSD_CROSSHAIR_RADIUS 10
+#define OSD_CROSSHAIR_TICK  (OSD_CROSSHAIR_RADIUS/2)
+#define OSD_CROSSHAIR_BORDER (OSD_CROSSHAIR_TICK + OSD_CROSSHAIR_RADIUS/4)
+#define OSD_CROSSHAIR_W  ((OSD_CROSSHAIR_RADIUS+OSD_CROSSHAIR_BORDER)*2)
+#define OSD_CROSSHAIR_H  ((OSD_CROSSHAIR_RADIUS+OSD_CROSSHAIR_BORDER)*2)
 
 static void
 osm_gps_map_osd_classic_get_property (GObject    *object,
@@ -110,6 +124,10 @@ osm_gps_map_osd_classic_constructor (GType gtype, guint n_properties, GObjectCon
     priv->coordinates->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, OSD_COORDINATES_W, OSD_COORDINATES_H);
     priv->coordinates->lat = priv->coordinates->lon = OSM_GPS_MAP_INVALID;
 
+    priv->crosshair = g_new0(OsdCrosshair_t, 1);
+    priv->crosshair->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, OSD_CROSSHAIR_W, OSD_CROSSHAIR_H);
+    priv->crosshair->rendered = FALSE;
+
     return object;
 }
 
@@ -127,6 +145,7 @@ osm_gps_map_osd_classic_finalize (GObject *object)
 
     OSD_STRUCT_DESTROY(priv->scale)
     OSD_STRUCT_DESTROY(priv->coordinates)
+    OSD_STRUCT_DESTROY(priv->crosshair)
 
 	G_OBJECT_CLASS (osm_gps_map_osd_classic_parent_class)->finalize (object);
 }
@@ -168,6 +187,7 @@ osm_gps_map_osd_classic_render (OsmGpsMapOsdClassic *self,
 
     scale_render(map, priv->scale);
     coordinates_render(map, priv->coordinates);
+    crosshair_render(map, priv->crosshair);
 
 }
 
@@ -186,6 +206,7 @@ osm_gps_map_osd_classic_draw (OsmGpsMapOsdClassic *self,
 
     scale_draw(priv->scale, allocation, cr);
     coordinates_draw(priv->coordinates, allocation, cr);
+    crosshair_draw(priv->crosshair, allocation, cr);
 
     cairo_destroy(cr);
 }
@@ -412,6 +433,49 @@ coordinates_draw(OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo
     if(y < 0) y += allocation->height - OSD_COORDINATES_H;
 
     cairo_set_source_surface(cr, coordinates->surface, x, y);
+    cairo_paint(cr);
+}
+
+
+static void
+crosshair_render(OsmGpsMap *map, OsdCrosshair_t *crosshair)
+{
+    if(!crosshair->surface || crosshair->rendered)
+        return;
+
+    crosshair->rendered = TRUE;
+
+    /* first fill with transparency */
+    g_assert(crosshair->surface);
+    cairo_t *cr = cairo_create(crosshair->surface);
+    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.0);
+    cairo_paint(cr);
+    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+
+    cairo_set_line_cap  (cr, CAIRO_LINE_CAP_ROUND);
+
+    cairo_set_source_rgba (cr, 1.0, 1.0, 1.0, 0.5);
+    cairo_set_line_width (cr, OSD_CROSSHAIR_RADIUS/2);
+    osd_render_crosshair_shape(cr, OSD_CROSSHAIR_W, OSD_CROSSHAIR_H, OSD_CROSSHAIR_RADIUS, OSD_CROSSHAIR_TICK);
+
+    cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 0.5);
+    cairo_set_line_width (cr, OSD_CROSSHAIR_RADIUS/4);
+    osd_render_crosshair_shape(cr, OSD_CROSSHAIR_W, OSD_CROSSHAIR_H, OSD_CROSSHAIR_RADIUS, OSD_CROSSHAIR_TICK);
+
+    cairo_destroy(cr);
+}
+
+
+static void
+crosshair_draw(OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr)
+{
+    gint x,y;
+
+    x = (allocation->width - OSD_CROSSHAIR_W)/2;
+    y = (allocation->height - OSD_CROSSHAIR_H)/2;
+
+    cairo_set_source_surface(cr, crosshair->surface, x, y);
     cairo_paint(cr);
 }
 

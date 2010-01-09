@@ -116,3 +116,26 @@ osd_render_centered_text(cairo_t *cr, int y, int width, int font_size, char *tex
     /* skip + 1/5 line */
     return y + 6*font_size/5;
 }
+
+void
+osd_render_crosshair_shape(cairo_t *cr, int w, int h, int r, int tick) {
+    cairo_arc (cr, w/2, h/2,
+               r, 0,  2*M_PI);
+
+    cairo_move_to (cr, w/2 - r,
+                   h/2);
+    cairo_rel_line_to (cr, -tick, 0);
+    cairo_move_to (cr, w/2 + r,
+                   h/2);
+    cairo_rel_line_to (cr,  tick, 0);
+
+    cairo_move_to (cr, w/2,
+                   h/2 - r);
+    cairo_rel_line_to (cr, 0, -tick);
+    cairo_move_to (cr, w/2,
+                   h/2 + r);
+    cairo_rel_line_to (cr, 0, tick);
+
+    cairo_stroke (cr);
+}
+

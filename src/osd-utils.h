@@ -24,6 +24,7 @@
 char *osd_latitude_str(float latitude);
 char *osd_longitude_str(float longitude);
 int osd_render_centered_text(cairo_t *cr, int y, int width, int font_size, char *text);
+void osd_render_crosshair_shape(cairo_t *cr, int w, int h, int r, int tick);
 
 #endif /* __OSD_UTILS_H__ */
 
