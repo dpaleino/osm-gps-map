@@ -43,6 +43,7 @@ void osd_render_dpad(cairo_t *cr, gint x, gint y, gint r, gint gps, gint shadow,
 void osd_draw_bbox(cairo_t *cr, gint x, gint y, gint w, gint h);
 gboolean osm_gps_map_in_circle(gint x, gint y, gint cx, gint cy, gint rad);
 OsdControlPress_t osd_check_dpad(gint x, gint y, gint r);
+void osd_dpad_gps(cairo_t *cr, gint x, gint y, gint r);
 
 
 #endif /* __OSD_UTILS_H__ */

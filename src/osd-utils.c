@@ -313,3 +313,31 @@ osd_check_dpad(gint x, gint y, gint r)
     return OSD_NONE;
 }
 
+/* draw a satellite receiver dish */
+void
+osd_dpad_gps(cairo_t *cr, gint x, gint y, gint r) {
+
+    gint GPS_V0 = r/7;
+    gint GPS_V1 = r/10;
+    gint GPS_V2 = r/5;
+
+    /* move reference to dpad center */
+//    x += (1-Z_GPS) * D_RAD + Z_GPS * Z_RAD * 3;
+//    y += (1-Z_GPS) * D_RAD + Z_GPS * Z_RAD + GPS_V0;
+
+    cairo_move_to (cr, x-GPS_V0, y+GPS_V0);
+    cairo_rel_line_to (cr, +GPS_V0, -GPS_V0);
+    cairo_rel_line_to (cr, +GPS_V0, +GPS_V0);
+    cairo_close_path (cr);
+
+    cairo_move_to (cr, x+GPS_V1-GPS_V2, y-2*GPS_V2);
+    cairo_curve_to (cr, x-GPS_V2, y, x+GPS_V1, y+GPS_V1, x+GPS_V1+GPS_V2, y);
+    cairo_close_path (cr);
+
+    x += GPS_V1;
+    cairo_move_to (cr, x, y-GPS_V2);
+    cairo_rel_line_to (cr, +GPS_V1, -GPS_V1);
+
+    debug_bbox(cr, x, y, r, r);
+}
+
