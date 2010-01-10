@@ -317,9 +317,9 @@ osd_check_dpad(gint x, gint y, gint r)
 void
 osd_dpad_gps(cairo_t *cr, gint x, gint y, gint r) {
 
-    gint GPS_V0 = r/7;
-    gint GPS_V1 = r/10;
-    gint GPS_V2 = r/5;
+    double GPS_V0 = r/7.0;
+    double GPS_V1 = r/10.0;
+    double GPS_V2 = r/5.0;
 
     /* move reference to dpad center */
 //    x += (1-Z_GPS) * D_RAD + Z_GPS * Z_RAD * 3;
