@@ -24,6 +24,8 @@
 
 #include "osd-utils.h"
 
+#define DEBUG_DRAWING   1
+
 /* these can be overwritten with versions that support
    localization */
 #define OSD_COORDINATES_CHR_N  "N"
@@ -31,9 +33,16 @@
 #define OSD_COORDINATES_CHR_E  "E"
 #define OSD_COORDINATES_CHR_W  "W"
 
+static void
+debug_bbox(cairo_t *cr, gint x, gint y, gint w, gint h) {
+#if DEBUG_DRAWING
+    osd_draw_bbox(cr, x, y, w, h);
+#endif
+}
+
 /* this is the classic geocaching notation */
-char 
-*osd_latitude_str(float latitude) {
+char *
+osd_latitude_str(float latitude) {
     char *c = OSD_COORDINATES_CHR_N;
     float integral, fractional;
     
@@ -51,8 +60,8 @@ char
                            c, (int)integral, fractional*60.0);
 }
 
-char 
-*osd_longitude_str(float longitude) {
+char *
+osd_longitude_str(float longitude) {
     char *c = OSD_COORDINATES_CHR_E;
     float integral, fractional;
     
@@ -137,5 +146,170 @@ osd_render_crosshair_shape(cairo_t *cr, int w, int h, int r, int tick) {
     cairo_rel_line_to (cr, 0, tick);
 
     cairo_stroke (cr);
+}
+
+void
+osd_shape_shadow(cairo_t *cr) {
+    cairo_set_source_rgba (cr, 0, 0, 0, 0.2);
+    cairo_fill (cr);
+    cairo_stroke (cr);
+}
+
+void
+osd_shape(cairo_t *cr, GdkColor *bg, GdkColor *fg) {
+    gdk_cairo_set_source_color(cr, bg);
+    cairo_fill_preserve (cr);
+    gdk_cairo_set_source_color(cr, fg);
+    cairo_set_line_width (cr, 1);
+    cairo_stroke (cr);
+}
+
+void
+osd_draw_bbox(cairo_t *cr, gint x, gint y, gint w, gint h)
+{
+    cairo_move_to (cr, x,    y);
+    cairo_rel_line_to (cr, w,  0);
+    cairo_rel_line_to (cr, 0,  h);
+    cairo_rel_line_to (cr, -w,  0);
+    cairo_rel_line_to (cr, 0,  -h);
+
+    cairo_set_source_rgba (cr, 1, 0, 0, 0.5);
+//    cairo_fill (cr);
+    cairo_stroke (cr);
+}
+
+/* create the cairo shape used for the zoom buttons */
+static void
+osd_zoom_shape(cairo_t *cr, gint x, gint y, gint w, gint h) {
+    gint r = h/2;   /* radius of curved ends of zoom pad */
+
+    x += r;    
+
+    cairo_move_to     (cr, x,           y);
+    cairo_rel_line_to (cr, w-2*r,       0);
+    cairo_arc         (cr, x+w-2*r,     y+r, r, -M_PI/2,  M_PI/2);
+    cairo_rel_line_to (cr, -(w-2*r),    0);
+    cairo_arc         (cr, x,           y+r, r,  M_PI/2, -M_PI/2);
+
+}
+
+static void
+osd_zoom_labels(cairo_t *cr, gint x, gint y, gint w, gint h) {
+    gint r = h/2;   /* radius of curved ends of zoom pad */
+    gint l = h/3;   /* length of lines that draw -/+ */
+
+    x += r;
+
+    cairo_move_to     (cr, x-l,         y+r);
+    cairo_rel_line_to (cr, 2*l,         0);
+
+    cairo_move_to     (cr, x+w-2*r,     y+r-l);
+    cairo_rel_line_to (cr, 0,           2*l);
+    cairo_move_to     (cr, x+w-l-2*r,   y+r);
+    cairo_rel_line_to (cr, 2*l,         0);
+}
+
+void
+osd_render_zoom(cairo_t *cr, gint x, gint y, gint w, gint h, gint gps, gint shadow, GdkColor *bg, GdkColor *fg) {
+    /* add the width of the GPS widget */
+    w += gps;
+
+    if (shadow) {
+        osd_zoom_shape(cr, x+shadow, y+shadow, w, h);
+        osd_shape_shadow(cr);
+    }
+    osd_zoom_shape(cr, x, y, w, h);
+    osd_shape(cr, bg, fg);
+    osd_zoom_labels(cr, x, y, w, h);
+    osd_shape(cr, bg, fg);
+
+    debug_bbox(cr, x, y, w, h);
+}
+
+static void 
+osd_dpad_shape(cairo_t *cr, gint x, gint y, gint r) {
+    cairo_arc (cr, x+r, y+r, r, 0, 2 * M_PI);
+}
+
+static void
+osd_dpad_labels(cairo_t *cr, gint x, gint y, gint r) {
+    /* move reference to dpad center */
+    x += r;
+    y += r;
+
+    double D_TIP = 4*r/5;   /* distance of arrow tip from dpad center */
+    double D_LEN = r/4;     /* length of arrow */
+    double D_WID = D_LEN;   /* width of arrow */
+
+    /* left arrow/triangle */
+    cairo_move_to (cr, x + (-D_TIP+D_LEN), y + (-D_WID));
+    cairo_rel_line_to (cr, -D_LEN, D_WID);
+    cairo_rel_line_to (cr, +D_LEN, D_WID);
+
+    /* right arrow/triangle */
+    cairo_move_to (cr, x + (+D_TIP-D_LEN), y + (-D_WID));
+    cairo_rel_line_to (cr, +D_LEN, D_WID);
+    cairo_rel_line_to (cr, -D_LEN, D_WID);
+
+    /* top arrow/triangle */
+    cairo_move_to (cr, x + (-D_WID), y + (-D_TIP+D_LEN));
+    cairo_rel_line_to (cr, D_WID, -D_LEN);
+    cairo_rel_line_to (cr, D_WID, +D_LEN);
+
+    /* bottom arrow/triangle */
+    cairo_move_to (cr, x + (-D_WID), y + (+D_TIP-D_LEN));
+    cairo_rel_line_to (cr, D_WID, +D_LEN);
+    cairo_rel_line_to (cr, D_WID, -D_LEN);
+}
+
+void
+osd_render_dpad(cairo_t *cr, gint x, gint y, gint r, gint gps, gint shadow, GdkColor *bg, GdkColor *fg) {
+    if (shadow) {
+        osd_dpad_shape(cr, x+shadow, y+shadow, r);
+        osd_shape_shadow(cr);
+    }
+    osd_dpad_shape(cr, x, y, r);
+    osd_shape(cr, bg, fg);
+    osd_dpad_labels(cr, x, y, r);
+    osd_shape(cr, bg, fg);
+
+    debug_bbox(cr, x, y, 2*r, 2*r);
+}
+
+gboolean
+osm_gps_map_in_circle(gint x, gint y, gint cx, gint cy, gint rad) 
+{
+    return( pow(cx - x, 2) + pow(cy - y, 2) < rad * rad);
+}
+
+OsdControlPress_t
+osd_check_dpad(gint x, gint y, gint r) 
+{
+    /* within entire dpad circle */
+    if( osm_gps_map_in_circle(x, y, r, r, r)) 
+    {
+        /* convert into position relative to dpads centre */
+        x -= r;
+        y -= r;
+
+//#ifdef OSD_GPS_BUTTON
+//        /* check for dpad center goes here! */
+//        if( osm_gps_map_in_circle(x, y, 0, 0, r/3)) 
+//            return OSD_GPS;
+//#endif
+
+        if( y < 0 && abs(x) < abs(y))
+            return OSD_UP;
+
+        if( y > 0 && abs(x) < abs(y))
+            return OSD_DOWN;
+
+        if( x < 0 && abs(y) < abs(x))
+            return OSD_LEFT;
+
+        if( x > 0 && abs(y) < abs(x))
+            return OSD_RIGHT;
+    }
+    return OSD_NONE;
 }
 

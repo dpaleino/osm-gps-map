@@ -52,17 +52,17 @@ struct _OsmGpsMapOsdClass
 
 	/* vtable */
     void (*render) (OsmGpsMapOsd *self, OsmGpsMap *map);
-    void (*draw) (OsmGpsMapOsd *self, GtkAllocation *allocation, GdkDrawable *drawable);
+    void (*draw) (OsmGpsMapOsd *self, OsmGpsMap *map, GdkDrawable *drawable);
     gboolean (*busy) (OsmGpsMapOsd *self);
-    gboolean (*button_press) (OsmGpsMapOsd *self, GdkEventButton *event);
+    gboolean (*button_press) (OsmGpsMapOsd *self, OsmGpsMap *map, GdkEventButton *event);
 	
 };
 
 GType         osm_gps_map_osd_get_type (void);
 void          osm_gps_map_osd_render   (OsmGpsMapOsd *self, OsmGpsMap *map);
-void          osm_gps_map_osd_draw     (OsmGpsMapOsd *self, GtkAllocation *allocation, GdkDrawable *drawable);
+void          osm_gps_map_osd_draw     (OsmGpsMapOsd *self, OsmGpsMap *map, GdkDrawable *drawable);
 gboolean      osm_gps_map_osd_busy     (OsmGpsMapOsd *self);
-gboolean      osm_gps_map_osd_button_press (OsmGpsMapOsd *self, GdkEventButton *event);
+gboolean      osm_gps_map_osd_button_press (OsmGpsMapOsd *self, OsmGpsMap *map, GdkEventButton *event);
 
 G_END_DECLS
 

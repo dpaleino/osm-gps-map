@@ -40,17 +40,24 @@ typedef struct _OsdCorosshair {
     gboolean rendered;
 } OsdCrosshair_t;
 
+typedef struct _OsdControls {
+    cairo_surface_t *surface;
+    gboolean rendered;
+    gint gps_enabled;
+} OsdControls_t;
+
 struct _OsmGpsMapOsdClassicPrivate
 {
     OsdScale_t          *scale;
     OsdCoordinates_t    *coordinates;
     OsdCrosshair_t      *crosshair;
+    OsdControls_t       *controls;
 };
 
 static void                 osm_gps_map_osd_classic_render       (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
-static void                 osm_gps_map_osd_classic_draw         (OsmGpsMapOsdClassic *self, GtkAllocation *allocation, GdkDrawable *drawable);
+static void                 osm_gps_map_osd_classic_draw         (OsmGpsMapOsdClassic *self, OsmGpsMap *map, GdkDrawable *drawable);
 static gboolean             osm_gps_map_osd_classic_busy         (OsmGpsMapOsdClassic *self);
-static gboolean             osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self, GdkEventButton *event);
+static gboolean             osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self, OsmGpsMap *map, GdkEventButton *event);
 
 static void                 scale_render(OsmGpsMap *map, OsdScale_t *scale);
 static void                 scale_draw(OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr);
@@ -58,6 +65,8 @@ static void                 coordinates_render(OsmGpsMap *map, OsdCoordinates_t 
 static void                 coordinates_draw(OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr);
 static void                 crosshair_render(OsmGpsMap *map, OsdCrosshair_t *crosshair);
 static void                 crosshair_draw(OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr);
+static void                 controls_render(OsmGpsMap *map, OsdControls_t *controls);
+static void                 controls_draw(OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr);
 
 //FIXME: These should be goject properties
 #define OSD_SCALE_FONT_SIZE (12.0)
@@ -82,6 +91,35 @@ static void                 crosshair_draw(OsdCrosshair_t *crosshair, GtkAllocat
 #define OSD_CROSSHAIR_BORDER (OSD_CROSSHAIR_TICK + OSD_CROSSHAIR_RADIUS/4)
 #define OSD_CROSSHAIR_W  ((OSD_CROSSHAIR_RADIUS+OSD_CROSSHAIR_BORDER)*2)
 #define OSD_CROSSHAIR_H  ((OSD_CROSSHAIR_RADIUS+OSD_CROSSHAIR_BORDER)*2)
+
+#define D_RAD  (30)         // diameter of dpad
+#define D_TIP  (4*D_RAD/5)  // distance of arrow tip from dpad center
+#define D_LEN  (D_RAD/4)    // length of arrow
+#define D_WID  (D_LEN)      // width of arrow
+
+/* parameters of the "zoom" pad */
+#define Z_STEP   (D_RAD/4)  // distance between dpad and zoom
+#define Z_RAD    (D_RAD/2)  // radius of "caps" of zoom bar
+
+/* shadow also depends on control size */
+#define OSD_SHADOW (D_RAD/6)
+#define OSD_LBL_SHADOW (OSD_SHADOW/2)
+
+/* normally the GPS button is in the center of the dpad. if there's */
+/* no dpad it will go into the zoom area */
+#define Z_GPS  1
+
+/* total width and height of controls incl. shadow */
+#define OSD_W    (2*D_RAD + OSD_SHADOW + 2 * Z_RAD)
+#define OSD_H    (2*D_RAD + Z_STEP + 2*Z_RAD + OSD_SHADOW)
+
+#define Z_TOP    (0)
+
+#define Z_MID    (Z_TOP + Z_RAD)
+#define Z_BOT    (Z_MID + Z_RAD)
+#define Z_LEFT   (Z_RAD)
+#define Z_RIGHT  (2 * D_RAD - Z_RAD + 2 * Z_RAD)
+#define Z_CENTER ((Z_RIGHT + Z_LEFT)/2)
 
 static void
 osm_gps_map_osd_classic_get_property (GObject    *object,
@@ -129,6 +167,12 @@ osm_gps_map_osd_classic_constructor (GType gtype, guint n_properties, GObjectCon
     priv->crosshair->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, OSD_CROSSHAIR_W, OSD_CROSSHAIR_H);
     priv->crosshair->rendered = FALSE;
 
+    priv->controls = g_new0(OsdControls_t, 1);
+    //FIXME: SIZE DEPENDS ON IF DPAD AND ZOOM IS THERE OR NOT
+    priv->controls->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, OSD_W+2, OSD_H+2);
+    priv->controls->rendered = FALSE;
+    priv->controls->gps_enabled = -1;
+
     return object;
 }
 
@@ -147,6 +191,7 @@ osm_gps_map_osd_classic_finalize (GObject *object)
     OSD_STRUCT_DESTROY(priv->scale)
     OSD_STRUCT_DESTROY(priv->coordinates)
     OSD_STRUCT_DESTROY(priv->crosshair)
+    OSD_STRUCT_DESTROY(priv->controls)
 
 	G_OBJECT_CLASS (osm_gps_map_osd_classic_parent_class)->finalize (object);
 }
@@ -190,25 +235,30 @@ osm_gps_map_osd_classic_render (OsmGpsMapOsdClassic *self,
     scale_render(map, priv->scale);
     coordinates_render(map, priv->coordinates);
     crosshair_render(map, priv->crosshair);
+    controls_render(map, priv->controls);
 
 }
 
 static void
 osm_gps_map_osd_classic_draw (OsmGpsMapOsdClassic *self,
-                              GtkAllocation *allocation,
+                              OsmGpsMap *map,
                               GdkDrawable *drawable)
 {
     cairo_t *cr;
     OsmGpsMapOsdClassicPrivate *priv;
+    GtkAllocation *allocation;
 
     g_return_if_fail(OSM_IS_GPS_MAP_OSD_CLASSIC(self));
+
     priv = self->priv;
+    allocation = &(GTK_WIDGET(map)->allocation);
 
     cr = gdk_cairo_create(drawable);
 
     scale_draw(priv->scale, allocation, cr);
     coordinates_draw(priv->coordinates, allocation, cr);
     crosshair_draw(priv->crosshair, allocation, cr);
+    controls_draw(priv->controls, allocation, cr);
 
     cairo_destroy(cr);
 }
@@ -221,9 +271,50 @@ osm_gps_map_osd_classic_busy (OsmGpsMapOsdClassic *self)
 
 static gboolean
 osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
-                              GdkEventButton *event)
+                                      OsmGpsMap *map,
+                                      GdkEventButton *event)
 {
-    return FALSE;
+    gboolean handled = FALSE;
+    OsdControlPress_t but = OSD_NONE;
+    GtkAllocation *allocation = &(GTK_WIDGET(map)->allocation);
+
+    if ((event->button == 1) && (event->type == GDK_BUTTON_PRESS)) {
+        gint mx = event->x - OSD_X;
+        gint my = event->y - OSD_Y;
+
+        if(OSD_X < 0)
+            mx -= (allocation->width - OSD_W);
+    
+        if(OSD_Y < 0)
+            my -= (allocation->height - OSD_H);
+
+        /* first do a rough test for the OSD area. */
+        /* this is just to avoid an unnecessary detailed test */
+        if(mx > 0 && mx < OSD_W && my > 0 && my < OSD_H) {
+            but = osd_check_dpad(mx, my, D_RAD);
+        }
+    }
+
+    switch (but) {
+        case OSD_LEFT:
+            osm_gps_map_scroll(map, -5, 0);
+            handled = TRUE;
+            break;
+        case OSD_RIGHT:
+            osm_gps_map_scroll(map, 5, 0);
+            handled = TRUE;
+            break;
+        case OSD_UP:
+            osm_gps_map_scroll(map, 0, -5);
+            handled = TRUE;
+            break;
+        case OSD_DOWN:
+            osm_gps_map_scroll(map, 0, 5);
+            handled = TRUE;
+            break;
+    }
+
+    return handled;
 }
 
 /**
@@ -488,4 +579,67 @@ crosshair_draw(OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr
     cairo_paint(cr);
 }
 
+static void
+controls_render(OsmGpsMap *map, OsdControls_t *controls)
+{
+    if(!controls->surface || controls->rendered)
+        return;
+
+    controls->rendered = TRUE;
+
+    GdkColor bg = GTK_WIDGET(map)->style->bg[GTK_STATE_NORMAL];
+    GdkColor fg = GTK_WIDGET(map)->style->fg[GTK_STATE_NORMAL];
+    GdkColor da = GTK_WIDGET(map)->style->fg[GTK_STATE_INSENSITIVE];
+
+    /* settings */
+    gboolean do_dpad = TRUE;
+    gboolean do_zoom = TRUE;
+
+    /* first fill with transparency */
+    g_assert(controls->surface);
+    cairo_t *cr = cairo_create(controls->surface);
+    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+    cairo_set_source_rgba(cr, 1.0, 0.0, 0.0, 0.0);
+    cairo_paint(cr);
+    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+
+    gint x = 1;
+    gint y = 1;
+    gint zoom_w = 2*D_RAD;
+    gint zoom_h = D_RAD;
+
+    /* --------- draw dpad ----------- */
+    if (do_dpad) {
+        osd_render_dpad(cr, x, y, D_RAD, 0 /*gps_w*/, OSD_SHADOW /*shadow*/, &bg, &fg);
+        y += (2*D_RAD);
+    }
+
+    /* --------- draw zoom ----------- */
+    if (do_zoom) {
+        osd_render_zoom(cr, x, y, zoom_w, zoom_h, 0 /*gps_w*/, OSD_SHADOW /*shadow*/, &bg, &fg);
+        y += zoom_h;
+    }
+
+    g_print("----------- %d,%d\n", D_RAD, zoom_h);
+
+}
+
+static void
+controls_draw(OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr)
+{
+    gint x,y;
+
+    x = OSD_X;
+    if(x < 0)
+        x += allocation->width - OSD_W;
+
+    y = OSD_Y;
+    if(y < 0)
+        y += allocation->height - OSD_H;
+
+    g_print("$$$$$$$$$$$ %d\n", OSD_W);
+
+    cairo_set_source_surface(cr, controls->surface, x, y);
+    cairo_paint(cr);
+}
 

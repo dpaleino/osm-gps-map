@@ -81,10 +81,10 @@ osm_gps_map_osd_render (OsmGpsMapOsd *self,
  */
 void
 osm_gps_map_osd_draw (OsmGpsMapOsd *self,
-                      GtkAllocation *allocation,
+                      OsmGpsMap *map,
                       GdkDrawable *drawable)
 {
-	OSM_GPS_MAP_OSD_GET_CLASS (self)->draw(self, allocation, drawable);
+	OSM_GPS_MAP_OSD_GET_CLASS (self)->draw(self, map, drawable);
 }
 
 /**
@@ -107,9 +107,10 @@ osm_gps_map_osd_busy (OsmGpsMapOsd *self)
  */
 gboolean
 osm_gps_map_osd_button_press (OsmGpsMapOsd *self,
+                              OsmGpsMap *map,
                               GdkEventButton *event)
 {
-	OSM_GPS_MAP_OSD_GET_CLASS (self)->button_press(self, event);
+	OSM_GPS_MAP_OSD_GET_CLASS (self)->button_press(self, map, event);
 }
 
 

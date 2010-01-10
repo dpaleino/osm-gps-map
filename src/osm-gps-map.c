@@ -1706,9 +1706,10 @@ osm_gps_map_scroll_event (GtkWidget *widget, GdkEventScroll  *event)
 static gboolean
 osm_gps_map_button_press (GtkWidget *widget, GdkEventButton *event)
 {
-    OsmGpsMapPrivate *priv = OSM_GPS_MAP_PRIVATE(widget);
+    OsmGpsMap *map = OSM_GPS_MAP(widget);
+    OsmGpsMapPrivate *priv = map->priv;
 
-    if (priv->osd && osm_gps_map_osd_button_press(priv->osd, event))
+    if (priv->osd && osm_gps_map_osd_button_press(priv->osd, map, event))
         return FALSE;
 
     priv->drag_counter = 0;
@@ -1843,7 +1844,8 @@ osm_gps_map_configure (GtkWidget *widget, GdkEventConfigure *event)
 static gboolean
 osm_gps_map_expose (GtkWidget *widget, GdkEventExpose  *event)
 {
-    OsmGpsMapPrivate *priv = OSM_GPS_MAP_PRIVATE(widget);
+    OsmGpsMap *map = OSM_GPS_MAP(widget);
+    OsmGpsMapPrivate *priv = map->priv;
 
     GdkDrawable *drawable = widget->window;
 
@@ -1906,7 +1908,7 @@ osm_gps_map_expose (GtkWidget *widget, GdkEventExpose  *event)
     }
 
     if (priv->osd)
-        osm_gps_map_osd_draw(priv->osd, &(widget->allocation), drawable);
+        osm_gps_map_osd_draw(priv->osd, map, drawable);
 
     return FALSE;
 }
