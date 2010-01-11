@@ -620,7 +620,7 @@ controls_render(OsmGpsMap *map, OsdControls_t *controls)
         y += zoom_h;
     }
 
-    osd_dpad_gps(cr, 10, 10, D_RAD);
+    osd_dpad_gps(cr, 10, 10, D_RAD, &bg, &fg);
     cairo_stroke(cr);
 
     g_print("----------- %d,%d\n", D_RAD, zoom_h);

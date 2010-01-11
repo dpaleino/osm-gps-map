@@ -315,15 +315,19 @@ osd_check_dpad(gint x, gint y, gint r)
 
 /* draw a satellite receiver dish */
 void
-osd_dpad_gps(cairo_t *cr, gint x, gint y, gint r) {
+osd_dpad_gps(cairo_t *cr, gint x, gint y, gint r, GdkColor *bg, GdkColor *fg) {
 
-    double GPS_V0 = r/7.0;
-    double GPS_V1 = r/10.0;
-    double GPS_V2 = r/5.0;
+    gint ox = x;
+    gint oy = y;
 
-    /* move reference to dpad center */
-//    x += (1-Z_GPS) * D_RAD + Z_GPS * Z_RAD * 3;
-//    y += (1-Z_GPS) * D_RAD + Z_GPS * Z_RAD + GPS_V0;
+    /* these define the gps widget shape */
+    double GPS_V0 = 1.5*r/7.0;
+    double GPS_V1 = 1.5*r/10.0;
+    double GPS_V2 = 1.5*r/5.0;
+
+    /* move reference to bounding box center */
+    x += (2*r/5);
+    y += (2*r/3);
 
     cairo_move_to (cr, x-GPS_V0, y+GPS_V0);
     cairo_rel_line_to (cr, +GPS_V0, -GPS_V0);
@@ -338,6 +342,8 @@ osd_dpad_gps(cairo_t *cr, gint x, gint y, gint r) {
     cairo_move_to (cr, x, y-GPS_V2);
     cairo_rel_line_to (cr, +GPS_V1, -GPS_V1);
 
-    debug_bbox(cr, x, y, r, r);
+    osd_shape(cr, bg, fg);
+
+    debug_bbox(cr, ox, oy, r, r);
 }
 
