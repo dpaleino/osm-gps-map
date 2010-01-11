@@ -1260,11 +1260,11 @@ on_window_key_press(GtkWidget *widget, GdkEventKey *event, OsmGpsMapPrivate *pri
                 handled = TRUE;
                 } break;
             case OSM_GPS_MAP_KEY_ZOOMIN:
-                osm_gps_map_set_zoom(map, priv->map_zoom+1);
+                osm_gps_map_zoom_in(map);
                 handled = TRUE;
                 break;
             case OSM_GPS_MAP_KEY_ZOOMOUT:
-                osm_gps_map_set_zoom(map, priv->map_zoom-1);
+                osm_gps_map_zoom_out(map);
                 handled = TRUE;
                 break;
             case OSM_GPS_MAP_KEY_UP:
@@ -1695,13 +1695,9 @@ osm_gps_map_scroll_event (GtkWidget *widget, GdkEventScroll  *event)
     OsmGpsMapPrivate *priv = map->priv;
 
     if (event->direction == GDK_SCROLL_UP)
-    {
-        osm_gps_map_set_zoom(map, priv->map_zoom+1);
-    }
-    else
-    {
-        osm_gps_map_set_zoom(map, priv->map_zoom-1);
-    }
+        osm_gps_map_zoom_in(map);
+    else if (event->direction == GDK_SCROLL_DOWN)
+        osm_gps_map_zoom_out(map);
 
     return FALSE;
 }
@@ -2402,6 +2398,20 @@ osm_gps_map_set_zoom (OsmGpsMap *map, int zoom)
         osm_gps_map_map_redraw_idle(map);
     }
     return priv->map_zoom;
+}
+
+int
+osm_gps_map_zoom_in (OsmGpsMap *map)
+{
+    g_return_val_if_fail (OSM_IS_GPS_MAP (map), 0);
+    return osm_gps_map_set_zoom(map, map->priv->map_zoom+1);
+}
+
+int
+osm_gps_map_zoom_out (OsmGpsMap *map)
+{
+    g_return_val_if_fail (OSM_IS_GPS_MAP (map), 0);
+    return osm_gps_map_set_zoom(map, map->priv->map_zoom-1);
 }
 
 void
