@@ -25,6 +25,19 @@
 
 G_DEFINE_TYPE (OsmGpsMapOsdClassic, osm_gps_map_osd_classic, OSM_TYPE_GPS_MAP_OSD)
 
+enum
+{
+	PROP_0,
+	PROP_DPAD_RADIUS,
+	PROP_SHOW_SCALE,
+	PROP_SHOW_COORDINATES,
+	PROP_SHOW_CROSSHAIR,
+	PROP_SHOW_DPAD,
+	PROP_SHOW_ZOOM,
+	PROP_SHOW_GPS_IN_DPAD,
+	PROP_SHOW_GPS_IN_ZOOM
+};
+
 typedef struct _OsdScale {
     cairo_surface_t *surface;
     int zoom;
@@ -52,6 +65,14 @@ struct _OsmGpsMapOsdClassicPrivate
     OsdCoordinates_t    *coordinates;
     OsdCrosshair_t      *crosshair;
     OsdControls_t       *controls;
+	guint     dpad_radius;
+	gboolean  show_scale;
+	gboolean  show_coordinates;
+	gboolean  show_crosshair;
+	gboolean  show_dpad;
+	gboolean  show_zoom;
+	gboolean  show_gps_in_dpad;
+	gboolean  show_gps_in_zoom;
 };
 
 static void                 osm_gps_map_osd_classic_render       (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
@@ -59,20 +80,14 @@ static void                 osm_gps_map_osd_classic_draw         (OsmGpsMapOsdCl
 static gboolean             osm_gps_map_osd_classic_busy         (OsmGpsMapOsdClassic *self);
 static gboolean             osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self, OsmGpsMap *map, GdkEventButton *event);
 
-static void                 scale_render(OsmGpsMap *map, OsdScale_t *scale);
-static void                 scale_draw(OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr);
-static void                 coordinates_render(OsmGpsMap *map, OsdCoordinates_t *coordinates);
-static void                 coordinates_draw(OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr);
-static void                 crosshair_render(OsmGpsMap *map, OsdCrosshair_t *crosshair);
-static void                 crosshair_draw(OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr);
-static void                 controls_render(OsmGpsMap *map, OsdControls_t *controls);
-static void                 controls_draw(OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr);
-
-//FIXME: These settings should be GObject properties
-static gboolean do_dpad = TRUE;
-static gboolean do_zoom = TRUE;
-static gboolean do_gps_in_dpad = TRUE;
-static gboolean do_gps_in_zoom = TRUE;
+static void                 scale_render                         (OsmGpsMap *map, OsdScale_t *scale);
+static void                 scale_draw                           (OsmGpsMap *map, OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr);
+static void                 coordinates_render                   (OsmGpsMap *map, OsdCoordinates_t *coordinates);
+static void                 coordinates_draw                     (OsmGpsMap *map, OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr);
+static void                 crosshair_render                     (OsmGpsMap *map, OsdCrosshair_t *crosshair);
+static void                 crosshair_draw                       (OsmGpsMap *map, OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr);
+static void                 controls_render                      (OsmGpsMap *map, OsdControls_t *controls);
+static void                 controls_draw                        (OsmGpsMap *map, OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr);
 
 //FIXME: These should be private properties
 #define OSD_SCALE_FONT_SIZE (12.0)
@@ -120,6 +135,30 @@ osm_gps_map_osd_classic_get_property (GObject    *object,
                                       GParamSpec *pspec)
 {
 	switch (property_id) {
+	case PROP_DPAD_RADIUS:
+		g_value_set_uint (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->dpad_radius);
+		break;
+	case PROP_SHOW_SCALE:
+		g_value_set_boolean (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_scale);
+		break;
+	case PROP_SHOW_COORDINATES:
+		g_value_set_boolean (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_coordinates);
+		break;
+	case PROP_SHOW_CROSSHAIR:
+		g_value_set_boolean (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_crosshair);
+		break;
+	case PROP_SHOW_DPAD:
+		g_value_set_boolean (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_dpad);
+		break;
+	case PROP_SHOW_ZOOM:
+		g_value_set_boolean (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_zoom);
+		break;
+	case PROP_SHOW_GPS_IN_DPAD:
+		g_value_set_boolean (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_gps_in_dpad);
+		break;
+	case PROP_SHOW_GPS_IN_ZOOM:
+		g_value_set_boolean (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_gps_in_zoom);
+		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
 	}
@@ -132,6 +171,30 @@ osm_gps_map_osd_classic_set_property (GObject      *object,
                                       GParamSpec   *pspec)
 {
 	switch (property_id) {
+	case PROP_DPAD_RADIUS:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->dpad_radius = g_value_get_uint (value);
+		break;
+	case PROP_SHOW_SCALE:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_scale = g_value_get_boolean (value);
+		break;
+	case PROP_SHOW_COORDINATES:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_coordinates = g_value_get_boolean (value);
+		break;
+	case PROP_SHOW_CROSSHAIR:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_crosshair = g_value_get_boolean (value);
+		break;
+	case PROP_SHOW_DPAD:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_dpad = g_value_get_boolean (value);
+		break;
+	case PROP_SHOW_ZOOM:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_zoom = g_value_get_boolean (value);
+		break;
+	case PROP_SHOW_GPS_IN_DPAD:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_gps_in_dpad = g_value_get_boolean (value);
+		break;
+	case PROP_SHOW_GPS_IN_ZOOM:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->show_gps_in_zoom = g_value_get_boolean (value);
+		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
 	}
@@ -205,6 +268,105 @@ osm_gps_map_osd_classic_class_init (OsmGpsMapOsdClassicClass *klass)
 	parent->draw = osm_gps_map_osd_classic_draw;
 	parent->busy = osm_gps_map_osd_classic_busy;
 	parent->button_press = osm_gps_map_osd_classic_button_press;
+
+	/**
+	 * OsmGpsMapOsdClassic:dpad-radius:
+	 *
+	 * The dpad radius property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_DPAD_RADIUS,
+	                                 g_param_spec_uint ("dpad-radius",
+	                                                     "dpad-radius",
+	                                                     "dpad radius",
+	                                                     0,
+	                                                     G_MAXUINT,
+	                                                     30,
+	                                                     G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+	/**
+	 * OsmGpsMapOsdClassic:show-scale:
+	 *
+	 * The show scale on the map property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_SHOW_SCALE,
+	                                 g_param_spec_boolean ("show-scale",
+	                                                       "show-scale",
+	                                                       "show scale on the map",
+	                                                       TRUE,
+	                                                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+	/**
+	 * OsmGpsMapOsdClassic:show-coordinates:
+	 *
+	 * The show coordinates of map centre property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_SHOW_COORDINATES,
+	                                 g_param_spec_boolean ("show-coordinates",
+	                                                       "show-coordinates",
+	                                                       "show coordinates of map centre",
+	                                                       TRUE,
+	                                                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+	/**
+	 * OsmGpsMapOsdClassic:show-crosshair:
+	 *
+	 * The show crosshair at map centre property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_SHOW_CROSSHAIR,
+	                                 g_param_spec_boolean ("show-crosshair",
+	                                                       "show-crosshair",
+	                                                       "show crosshair at map centre",
+	                                                       FALSE,
+	                                                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+	/**
+	 * OsmGpsMapOsdClassic:show-dpad:
+	 *
+	 * The show dpad for map navigation property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_SHOW_DPAD,
+	                                 g_param_spec_boolean ("show-dpad",
+	                                                       "show-dpad",
+	                                                       "show dpad for map navigation",
+	                                                       FALSE,
+	                                                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+	/**
+	 * OsmGpsMapOsdClassic:show-zoom:
+	 *
+	 * The show zoom control for map navigation property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_SHOW_ZOOM,
+	                                 g_param_spec_boolean ("show-zoom",
+	                                                       "show-zoom",
+	                                                       "show zoom control for map navigation",
+	                                                       FALSE,
+	                                                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+	/**
+	 * OsmGpsMapOsdClassic:show-gps-in-dpad:
+	 *
+	 * The show gps indicator in middle of dpad property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_SHOW_GPS_IN_DPAD,
+	                                 g_param_spec_boolean ("show-gps-in-dpad",
+	                                                       "show-gps-in-dpad",
+	                                                       "show gps indicator in middle of dpad",
+	                                                       FALSE,
+	                                                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+	/**
+	 * OsmGpsMapOsdClassic:show-gps-in-zoom:
+	 *
+	 * The show gps indicator in middle of zoom control property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_SHOW_GPS_IN_ZOOM,
+	                                 g_param_spec_boolean ("show-gps-in-zoom",
+	                                                       "show-gps-in-zoom",
+	                                                       "show gps indicator in middle of zoom control",
+	                                                       FALSE,
+	                                                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 }
 
 static void
@@ -224,10 +386,14 @@ osm_gps_map_osd_classic_render (OsmGpsMapOsdClassic *self,
     g_return_if_fail(OSM_IS_GPS_MAP_OSD_CLASSIC(self));
     priv = self->priv;
 
-    scale_render(map, priv->scale);
-    coordinates_render(map, priv->coordinates);
-    crosshair_render(map, priv->crosshair);
-    controls_render(map, priv->controls);
+    if (priv->show_scale)
+        scale_render(map, priv->scale);
+    if (priv->show_coordinates)
+        coordinates_render(map, priv->coordinates);
+    if (priv->show_crosshair)
+        crosshair_render(map, priv->crosshair);
+    if (priv->show_zoom || priv->show_dpad)
+        controls_render(map, priv->controls);
 
 }
 
@@ -247,10 +413,14 @@ osm_gps_map_osd_classic_draw (OsmGpsMapOsdClassic *self,
 
     cr = gdk_cairo_create(drawable);
 
-    scale_draw(priv->scale, allocation, cr);
-    coordinates_draw(priv->coordinates, allocation, cr);
-    crosshair_draw(priv->crosshair, allocation, cr);
-    controls_draw(priv->controls, allocation, cr);
+    if (priv->show_scale)
+        scale_draw(map, priv->scale, allocation, cr);
+    if (priv->show_coordinates)
+        coordinates_draw(map, priv->coordinates, allocation, cr);
+    if (priv->show_crosshair)
+        crosshair_draw(map, priv->crosshair, allocation, cr);
+    if (priv->show_zoom || priv->show_dpad)
+        controls_draw(map, priv->controls, allocation, cr);
 
     cairo_destroy(cr);
 }
@@ -268,6 +438,7 @@ osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
 {
     gboolean handled = FALSE;
     OsdControlPress_t but = OSD_NONE;
+    OsmGpsMapOsdClassicPrivate *priv = map->priv;
     GtkAllocation *allocation = &(GTK_WIDGET(map)->allocation);
 
     if ((event->button == 1) && (event->type == GDK_BUTTON_PRESS)) {
@@ -280,11 +451,11 @@ osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
         if(OSD_Y < 0)
             my -= (allocation->height - OSD_H);
 
-        if (do_dpad) {
+        if (priv->show_dpad) {
             /* first do a rough test for the OSD area. */
             /* this is just to avoid an unnecessary detailed test */
             if(mx > 0 && mx < OSD_W && my > 0 && my < OSD_H) {
-                but = osd_check_dpad(mx, my, D_RAD, do_gps_in_dpad);
+                but = osd_check_dpad(mx, my, D_RAD, priv->show_gps_in_dpad);
             }
         }
     }
@@ -331,6 +502,8 @@ osm_gps_map_osd_classic_new (void)
 static void
 scale_render(OsmGpsMap *map, OsdScale_t *scale)
 {
+    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+
     if(!scale->surface)
         return;
 
@@ -459,9 +632,10 @@ scale_render(OsmGpsMap *map, OsdScale_t *scale)
 }
 
 static void
-scale_draw(OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr)
+scale_draw(OsmGpsMap *map, OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr)
 {
     gint x, y;
+    OsmGpsMapOsdClassicPrivate *priv = map->priv;
 
     x =  OSD_X;
     y = -OSD_Y;
@@ -475,6 +649,8 @@ scale_draw(OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr)
 static void
 coordinates_render(OsmGpsMap *map, OsdCoordinates_t *coordinates)
 {
+    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+
     if(!coordinates->surface)
         return;
 
@@ -521,9 +697,10 @@ coordinates_render(OsmGpsMap *map, OsdCoordinates_t *coordinates)
 }
 
 static void
-coordinates_draw(OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr)
+coordinates_draw(OsmGpsMap *map, OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr)
 {
     gint x,y;
+    OsmGpsMapOsdClassicPrivate *priv = map->priv;
 
     x = -OSD_X;
     y = -OSD_Y;
@@ -538,6 +715,8 @@ coordinates_draw(OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo
 static void
 crosshair_render(OsmGpsMap *map, OsdCrosshair_t *crosshair)
 {
+    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+
     if(!crosshair->surface || crosshair->rendered)
         return;
 
@@ -566,8 +745,9 @@ crosshair_render(OsmGpsMap *map, OsdCrosshair_t *crosshair)
 
 
 static void
-crosshair_draw(OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr)
+crosshair_draw(OsmGpsMap *map, OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr)
 {
+    OsmGpsMapOsdClassicPrivate *priv = map->priv;
     gint x,y;
 
     x = (allocation->width - OSD_CROSSHAIR_W)/2;
@@ -580,6 +760,8 @@ crosshair_draw(OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr
 static void
 controls_render(OsmGpsMap *map, OsdControls_t *controls)
 {
+    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+
     if(!controls->surface || controls->rendered)
         return;
 
@@ -603,10 +785,10 @@ controls_render(OsmGpsMap *map, OsdControls_t *controls)
     gint zoom_h = D_RAD;
 
     /* --------- draw dpad ----------- */
-    if (do_dpad) {
-        gint gps_w = (do_gps_in_dpad ? D_RAD/2 : 0);
+    if (priv->show_dpad) {
+        gint gps_w = (priv->show_gps_in_dpad ? D_RAD/2 : 0);
         osd_render_dpad(cr, x, y, D_RAD, gps_w, OSD_SHADOW /*shadow*/, &bg, &fg);
-        if (do_gps_in_dpad) {
+        if (priv->show_gps_in_dpad) {
             gint gps_x = x+D_RAD-(gps_w/2);
             gint gps_y = y+D_RAD-(gps_w/2);
             osd_render_gps(cr, gps_x, gps_y, gps_w, &bg, &fg);
@@ -616,10 +798,10 @@ controls_render(OsmGpsMap *map, OsdControls_t *controls)
     }
 
     /* --------- draw zoom ----------- */
-    if (do_zoom) {
-        gint gps_w = (do_gps_in_zoom ? D_RAD/2 : 0);
+    if (priv->show_zoom) {
+        gint gps_w = (priv->show_gps_in_zoom ? D_RAD/2 : 0);
         osd_render_zoom(cr, x, y, zoom_w, zoom_h, gps_w, OSD_SHADOW /*shadow*/, &bg, &fg);
-        if (do_gps_in_zoom) {
+        if (priv->show_gps_in_zoom) {
             gint gps_x = x+(zoom_w/2);
             gint gps_y = y+(zoom_h/2)-(gps_w/2);
             osd_render_gps(cr, gps_x, gps_y, gps_w, &bg, &fg);
@@ -630,8 +812,9 @@ controls_render(OsmGpsMap *map, OsdControls_t *controls)
 }
 
 static void
-controls_draw(OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr)
+controls_draw(OsmGpsMap *map, OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr)
 {
+    OsmGpsMapOsdClassicPrivate *priv = map->priv;
     gint x,y;
 
     x = OSD_X;
