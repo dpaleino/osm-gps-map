@@ -245,7 +245,15 @@ main (int argc, char **argv)
                         "proxy-uri",g_getenv("http_proxy"),
                         NULL);
 
-    osd = osm_gps_map_osd_classic_new();
+    osd = g_object_new (OSM_TYPE_GPS_MAP_OSD_CLASSIC,
+                        "show-scale",TRUE,
+                        "show-coordinates",TRUE,
+                        "show-crosshair",TRUE,
+                        "show-dpad",TRUE,
+                        "show-zoom",TRUE,
+                        "show-gps-in-dpad",TRUE,
+                        "show-gps-in-zoom",TRUE,
+                        NULL);
     osm_gps_map_enable_osd(OSM_GPS_MAP(map), osd);
     g_object_unref(G_OBJECT(osd));
 

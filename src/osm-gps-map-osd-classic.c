@@ -65,14 +65,14 @@ struct _OsmGpsMapOsdClassicPrivate
     OsdCoordinates_t    *coordinates;
     OsdCrosshair_t      *crosshair;
     OsdControls_t       *controls;
-	guint     dpad_radius;
-	gboolean  show_scale;
-	gboolean  show_coordinates;
-	gboolean  show_crosshair;
-	gboolean  show_dpad;
-	gboolean  show_zoom;
-	gboolean  show_gps_in_dpad;
-	gboolean  show_gps_in_zoom;
+	guint               dpad_radius;
+	gboolean            show_scale;
+	gboolean            show_coordinates;
+	gboolean            show_crosshair;
+	gboolean            show_dpad;
+	gboolean            show_zoom;
+	gboolean            show_gps_in_dpad;
+	gboolean            show_gps_in_zoom;
 };
 
 static void                 osm_gps_map_osd_classic_render       (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
@@ -80,14 +80,14 @@ static void                 osm_gps_map_osd_classic_draw         (OsmGpsMapOsdCl
 static gboolean             osm_gps_map_osd_classic_busy         (OsmGpsMapOsdClassic *self);
 static gboolean             osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self, OsmGpsMap *map, GdkEventButton *event);
 
-static void                 scale_render                         (OsmGpsMap *map, OsdScale_t *scale);
-static void                 scale_draw                           (OsmGpsMap *map, OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr);
-static void                 coordinates_render                   (OsmGpsMap *map, OsdCoordinates_t *coordinates);
-static void                 coordinates_draw                     (OsmGpsMap *map, OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr);
-static void                 crosshair_render                     (OsmGpsMap *map, OsdCrosshair_t *crosshair);
-static void                 crosshair_draw                       (OsmGpsMap *map, OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr);
-static void                 controls_render                      (OsmGpsMap *map, OsdControls_t *controls);
-static void                 controls_draw                        (OsmGpsMap *map, OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr);
+static void                 scale_render                         (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
+static void                 scale_draw                           (OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr);
+static void                 coordinates_render                   (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
+static void                 coordinates_draw                     (OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr);
+static void                 crosshair_render                     (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
+static void                 crosshair_draw                       (OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr);
+static void                 controls_render                      (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
+static void                 controls_draw                        (OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr);
 
 //FIXME: These should be private properties
 #define OSD_SCALE_FONT_SIZE (12.0)
@@ -387,13 +387,13 @@ osm_gps_map_osd_classic_render (OsmGpsMapOsdClassic *self,
     priv = self->priv;
 
     if (priv->show_scale)
-        scale_render(map, priv->scale);
+        scale_render(self, map);
     if (priv->show_coordinates)
-        coordinates_render(map, priv->coordinates);
+        coordinates_render(self, map);
     if (priv->show_crosshair)
-        crosshair_render(map, priv->crosshair);
+        crosshair_render(self, map);
     if (priv->show_zoom || priv->show_dpad)
-        controls_render(map, priv->controls);
+        controls_render(self, map);
 
 }
 
@@ -414,13 +414,13 @@ osm_gps_map_osd_classic_draw (OsmGpsMapOsdClassic *self,
     cr = gdk_cairo_create(drawable);
 
     if (priv->show_scale)
-        scale_draw(map, priv->scale, allocation, cr);
+        scale_draw(self, allocation, cr);
     if (priv->show_coordinates)
-        coordinates_draw(map, priv->coordinates, allocation, cr);
+        coordinates_draw(self, allocation, cr);
     if (priv->show_crosshair)
-        crosshair_draw(map, priv->crosshair, allocation, cr);
+        crosshair_draw(self, allocation, cr);
     if (priv->show_zoom || priv->show_dpad)
-        controls_draw(map, priv->controls, allocation, cr);
+        controls_draw(self, allocation, cr);
 
     cairo_destroy(cr);
 }
@@ -438,7 +438,7 @@ osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
 {
     gboolean handled = FALSE;
     OsdControlPress_t but = OSD_NONE;
-    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+    OsmGpsMapOsdClassicPrivate *priv = self->priv;
     GtkAllocation *allocation = &(GTK_WIDGET(map)->allocation);
 
     if ((event->button == 1) && (event->type == GDK_BUTTON_PRESS)) {
@@ -500,9 +500,9 @@ osm_gps_map_osd_classic_new (void)
 }
 
 static void
-scale_render(OsmGpsMap *map, OsdScale_t *scale)
+scale_render(OsmGpsMapOsdClassic *self, OsmGpsMap *map)
 {
-    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+    OsdScale_t *scale = self->priv->scale;
 
     if(!scale->surface)
         return;
@@ -632,10 +632,11 @@ scale_render(OsmGpsMap *map, OsdScale_t *scale)
 }
 
 static void
-scale_draw(OsmGpsMap *map, OsdScale_t *scale, GtkAllocation *allocation, cairo_t *cr)
+scale_draw(OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr)
 {
+    OsdScale_t *scale = self->priv->scale;
+
     gint x, y;
-    OsmGpsMapOsdClassicPrivate *priv = map->priv;
 
     x =  OSD_X;
     y = -OSD_Y;
@@ -647,9 +648,9 @@ scale_draw(OsmGpsMap *map, OsdScale_t *scale, GtkAllocation *allocation, cairo_t
 }
 
 static void
-coordinates_render(OsmGpsMap *map, OsdCoordinates_t *coordinates)
+coordinates_render(OsmGpsMapOsdClassic *self, OsmGpsMap *map)
 {
-    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+    OsdCoordinates_t *coordinates = self->priv->coordinates;
 
     if(!coordinates->surface)
         return;
@@ -697,10 +698,10 @@ coordinates_render(OsmGpsMap *map, OsdCoordinates_t *coordinates)
 }
 
 static void
-coordinates_draw(OsmGpsMap *map, OsdCoordinates_t *coordinates, GtkAllocation *allocation, cairo_t *cr)
+coordinates_draw(OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr)
 {
+    OsdCoordinates_t *coordinates = self->priv->coordinates;
     gint x,y;
-    OsmGpsMapOsdClassicPrivate *priv = map->priv;
 
     x = -OSD_X;
     y = -OSD_Y;
@@ -713,9 +714,9 @@ coordinates_draw(OsmGpsMap *map, OsdCoordinates_t *coordinates, GtkAllocation *a
 
 
 static void
-crosshair_render(OsmGpsMap *map, OsdCrosshair_t *crosshair)
+crosshair_render(OsmGpsMapOsdClassic *self, OsmGpsMap *map)
 {
-    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+    OsdCrosshair_t *crosshair = self->priv->crosshair;
 
     if(!crosshair->surface || crosshair->rendered)
         return;
@@ -745,9 +746,9 @@ crosshair_render(OsmGpsMap *map, OsdCrosshair_t *crosshair)
 
 
 static void
-crosshair_draw(OsmGpsMap *map, OsdCrosshair_t *crosshair, GtkAllocation *allocation, cairo_t *cr)
+crosshair_draw(OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr)
 {
-    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+    OsdCrosshair_t *crosshair = self->priv->crosshair;
     gint x,y;
 
     x = (allocation->width - OSD_CROSSHAIR_W)/2;
@@ -758,9 +759,10 @@ crosshair_draw(OsmGpsMap *map, OsdCrosshair_t *crosshair, GtkAllocation *allocat
 }
 
 static void
-controls_render(OsmGpsMap *map, OsdControls_t *controls)
+controls_render(OsmGpsMapOsdClassic *self, OsmGpsMap *map)
 {
-    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+    OsmGpsMapOsdClassicPrivate *priv = self->priv;
+    OsdControls_t *controls = self->priv->controls;
 
     if(!controls->surface || controls->rendered)
         return;
@@ -812,9 +814,10 @@ controls_render(OsmGpsMap *map, OsdControls_t *controls)
 }
 
 static void
-controls_draw(OsmGpsMap *map, OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr)
+controls_draw(OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr)
 {
-    OsmGpsMapOsdClassicPrivate *priv = map->priv;
+    OsdControls_t *controls = self->priv->controls;
+
     gint x,y;
 
     x = OSD_X;
