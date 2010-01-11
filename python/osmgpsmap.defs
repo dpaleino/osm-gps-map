@@ -161,6 +161,18 @@
   )
 )
 
+(define-method zoom_in
+  (of-object "OsmGpsMap")
+  (c-name "osm_gps_map_zoom_in")
+  (return-type "int")
+)
+
+(define-method zoom_out
+  (of-object "OsmGpsMap")
+  (c-name "osm_gps_map_zoom_out")
+  (return-type "int")
+)
+
 (define-method add_track
   (of-object "OsmGpsMap")
   (c-name "osm_gps_map_add_track")
