@@ -1492,6 +1492,9 @@ osm_gps_map_finalize (GObject *object)
     osm_gps_map_free_trip(map);
     osm_gps_map_free_tracks(map);
 
+    if (priv->osd)
+        g_object_unref(G_OBJECT(priv->osd));
+
     G_OBJECT_CLASS (osm_gps_map_parent_class)->finalize (object);
 }
 
@@ -2658,6 +2661,7 @@ void osm_gps_map_enable_osd(OsmGpsMap *map, void *osd)
     g_return_if_fail (OSM_IS_GPS_MAP (map));
     g_return_if_fail (OSM_IS_GPS_MAP_OSD (osd));
 
+    g_object_ref(G_OBJECT(osd));
     map->priv->osd = osd;
 }
 

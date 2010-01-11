@@ -247,6 +247,7 @@ main (int argc, char **argv)
 
     osd = osm_gps_map_osd_classic_new();
     osm_gps_map_enable_osd(OSM_GPS_MAP(map), osd);
+    g_object_unref(G_OBJECT(osd));
 
     //Enable keyboard navigation
     osm_gps_map_set_keyboard_shortcut(map, OSM_GPS_MAP_KEY_FULLSCREEN, GDK_F11);
