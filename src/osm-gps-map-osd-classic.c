@@ -28,6 +28,8 @@ G_DEFINE_TYPE (OsmGpsMapOsdClassic, osm_gps_map_osd_classic, OSM_TYPE_GPS_MAP_OS
 enum
 {
 	PROP_0,
+    PROP_OSD_X,
+    PROP_OSD_Y,
 	PROP_DPAD_RADIUS,
 	PROP_SHOW_SCALE,
 	PROP_SHOW_COORDINATES,
@@ -65,6 +67,13 @@ struct _OsmGpsMapOsdClassicPrivate
     OsdCoordinates_t    *coordinates;
     OsdCrosshair_t      *crosshair;
     OsdControls_t       *controls;
+    guint               osd_w;
+    guint               osd_h;
+    guint               osd_shadow;
+
+    /* properties */
+    gint                osd_x;
+    gint                osd_y;
 	guint               dpad_radius;
 	gboolean            show_scale;
 	gboolean            show_coordinates;
@@ -93,8 +102,6 @@ static void                 controls_draw                        (OsmGpsMapOsdCl
 #define OSD_SCALE_FONT_SIZE (12.0)
 #define OSD_SCALE_W   (10*OSD_SCALE_FONT_SIZE)
 #define OSD_SCALE_H   (5*OSD_SCALE_FONT_SIZE/2)
-#define OSD_X         (10)
-#define OSD_Y         (10)
 
 #define OSD_SCALE_H2   (OSD_SCALE_H/2)
 #define OSD_SCALE_TICK (2*OSD_SCALE_FONT_SIZE/3)
@@ -122,11 +129,6 @@ static void                 controls_draw                        (OsmGpsMapOsdCl
 
 /* shadow also depends on control size */
 #define OSD_SHADOW (D_RAD/8)
-#define OSD_LBL_SHADOW (OSD_SHADOW/2)
-
-/* total width and height of controls incl. shadow */
-#define OSD_W    (2*D_RAD + OSD_SHADOW + 2 * Z_RAD)
-#define OSD_H    (2*D_RAD + Z_STEP + 2*Z_RAD + OSD_SHADOW)
 
 static void
 osm_gps_map_osd_classic_get_property (GObject    *object,
@@ -135,6 +137,12 @@ osm_gps_map_osd_classic_get_property (GObject    *object,
                                       GParamSpec *pspec)
 {
 	switch (property_id) {
+	case PROP_OSD_X:
+		g_value_set_int (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->osd_x);
+		break;
+	case PROP_OSD_Y:
+		g_value_set_int (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->osd_y);
+		break;
 	case PROP_DPAD_RADIUS:
 		g_value_set_uint (value, OSM_GPS_MAP_OSD_CLASSIC (object)->priv->dpad_radius);
 		break;
@@ -171,6 +179,12 @@ osm_gps_map_osd_classic_set_property (GObject      *object,
                                       GParamSpec   *pspec)
 {
 	switch (property_id) {
+	case PROP_OSD_X:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->osd_x = g_value_get_int (value);
+		break;
+	case PROP_OSD_Y:
+		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->osd_y = g_value_get_int (value);
+		break;
 	case PROP_DPAD_RADIUS:
 		OSM_GPS_MAP_OSD_CLASSIC (object)->priv->dpad_radius = g_value_get_uint (value);
 		break;
@@ -210,6 +224,10 @@ osm_gps_map_osd_classic_constructor (GType gtype, guint n_properties, GObjectCon
     object = G_OBJECT_CLASS(osm_gps_map_osd_classic_parent_class)->constructor(gtype, n_properties, properties);
     priv = OSM_GPS_MAP_OSD_CLASSIC(object)->priv;
 
+/* total width and height of controls incl. shadow */
+    priv->osd_w = 2*D_RAD + OSD_SHADOW + 2*Z_RAD;
+    priv->osd_h = 2*D_RAD + Z_STEP + 2*Z_RAD + OSD_SHADOW;
+
     priv->scale = g_new0(OsdScale_t, 1);
     priv->scale->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, OSD_SCALE_W, OSD_SCALE_H);
     priv->scale->zoom = -1;
@@ -224,7 +242,7 @@ osm_gps_map_osd_classic_constructor (GType gtype, guint n_properties, GObjectCon
 
     priv->controls = g_new0(OsdControls_t, 1);
     //FIXME: SIZE DEPENDS ON IF DPAD AND ZOOM IS THERE OR NOT
-    priv->controls->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, OSD_W+2, OSD_H+2);
+    priv->controls->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, priv->osd_w+2, priv->osd_h+2);
     priv->controls->rendered = FALSE;
     priv->controls->gps_enabled = -1;
 
@@ -269,6 +287,34 @@ osm_gps_map_osd_classic_class_init (OsmGpsMapOsdClassicClass *klass)
 	parent->busy = osm_gps_map_osd_classic_busy;
 	parent->button_press = osm_gps_map_osd_classic_button_press;
 
+	/**
+	 * OsmGpsMapOsdClassic:osd-x:
+	 *
+	 * The osd x property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_OSD_X,
+	                                 g_param_spec_int ("osd-x",
+	                                                     "osd-x",
+	                                                     "osd-x",
+	                                                     G_MININT,
+	                                                     G_MAXINT,
+	                                                     10,
+	                                                     G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+	/**
+	 * OsmGpsMapOsdClassic:osd-y:
+	 *
+	 * The osd y property.
+	 */
+	g_object_class_install_property (object_class,
+	                                 PROP_OSD_Y,
+	                                 g_param_spec_int ("osd-y",
+	                                                     "osd-y",
+	                                                     "osd-y",
+	                                                     G_MININT,
+	                                                     G_MAXINT,
+	                                                     10,
+	                                                     G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 	/**
 	 * OsmGpsMapOsdClassic:dpad-radius:
 	 *
@@ -442,19 +488,19 @@ osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
     GtkAllocation *allocation = &(GTK_WIDGET(map)->allocation);
 
     if ((event->button == 1) && (event->type == GDK_BUTTON_PRESS)) {
-        gint mx = event->x - OSD_X;
-        gint my = event->y - OSD_Y;
+        gint mx = event->x - priv->osd_x;
+        gint my = event->y - priv->osd_y;
 
-        if(OSD_X < 0)
-            mx -= (allocation->width - OSD_W);
+        if(priv->osd_x < 0)
+            mx -= (allocation->width - priv->osd_w);
     
-        if(OSD_Y < 0)
-            my -= (allocation->height - OSD_H);
+        if(priv->osd_y < 0)
+            my -= (allocation->height - priv->osd_h);
 
         if (priv->show_dpad) {
             /* first do a rough test for the OSD area. */
             /* this is just to avoid an unnecessary detailed test */
-            if(mx > 0 && mx < OSD_W && my > 0 && my < OSD_H) {
+            if(mx > 0 && mx < priv->osd_w && my > 0 && my < priv->osd_h) {
                 but = osd_check_dpad(mx, my, D_RAD, priv->show_gps_in_dpad);
             }
         }
@@ -634,12 +680,13 @@ scale_render(OsmGpsMapOsdClassic *self, OsmGpsMap *map)
 static void
 scale_draw(OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr)
 {
+    OsmGpsMapOsdClassicPrivate *priv = self->priv;
     OsdScale_t *scale = self->priv->scale;
 
     gint x, y;
 
-    x =  OSD_X;
-    y = -OSD_Y;
+    x =  priv->osd_x;
+    y = -priv->osd_y;
     if(x < 0) x += allocation->width - OSD_SCALE_W;
     if(y < 0) y += allocation->height - OSD_SCALE_H;
 
@@ -700,11 +747,12 @@ coordinates_render(OsmGpsMapOsdClassic *self, OsmGpsMap *map)
 static void
 coordinates_draw(OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr)
 {
+    OsmGpsMapOsdClassicPrivate *priv = self->priv;
     OsdCoordinates_t *coordinates = self->priv->coordinates;
     gint x,y;
 
-    x = -OSD_X;
-    y = -OSD_Y;
+    x = -priv->osd_x;
+    y = -priv->osd_y;
     if(x < 0) x += allocation->width - OSD_COORDINATES_W;
     if(y < 0) y += allocation->height - OSD_COORDINATES_H;
 
@@ -816,17 +864,18 @@ controls_render(OsmGpsMapOsdClassic *self, OsmGpsMap *map)
 static void
 controls_draw(OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr)
 {
+    OsmGpsMapOsdClassicPrivate *priv = self->priv;
     OsdControls_t *controls = self->priv->controls;
 
     gint x,y;
 
-    x = OSD_X;
+    x = priv->osd_x;
     if(x < 0)
-        x += allocation->width - OSD_W;
+        x += allocation->width - priv->osd_w;
 
-    y = OSD_Y;
+    y = priv->osd_y;
     if(y < 0)
-        y += allocation->height - OSD_H;
+        y += allocation->height - priv->osd_h;
 
     cairo_set_source_surface(cr, controls->surface, x, y);
     cairo_paint(cr);
