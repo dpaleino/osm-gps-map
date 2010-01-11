@@ -7,6 +7,20 @@
   (gtype-id "OSM_TYPE_GPS_MAP")
 )
 
+(define-object GpsMapOsd
+  (in-module "Osm")
+  (parent "GObject")
+  (c-name "OsmGpsMapOsd")
+  (gtype-id "OSM_TYPE_GPS_MAP_OSD")
+)
+
+(define-object GpsMapOsdClassic
+  (in-module "Osm")
+  (parent "OsmGpsMapOsd")
+  (c-name "OsmGpsMapOsdClassic")
+  (gtype-id "OSM_TYPE_GPS_MAP_OSD_CLASSIC")
+)
+
 ;; Enumerations and flags ...
 (define-enum MapSource
   (in-module "Osm")
@@ -288,4 +302,69 @@
   )
 )
 
+(define-method enable_osd
+  (of-object "OsmGpsMap")
+  (c-name "osm_gps_map_enable_osd")
+  (return-type "none")
+  (parameters
+    '("OsmGpsMapOsd" "osd")
+  )
+)
 
+
+;; From osm-gps-map-osd-classic.h
+
+(define-function osm_gps_map_osd_classic_get_type
+  (c-name "osm_gps_map_osd_classic_get_type")
+  (return-type "GType")
+)
+
+(define-function osm_gps_map_osd_classic_new
+  (c-name "osm_gps_map_osd_classic_new")
+  (is-constructor-of "OsmGpsMapOsdClassic")
+  (return-type "OsmGpsMapOsdClassic*")
+)
+
+
+
+;; From osm-gps-map-osd.h
+
+(define-function osm_gps_map_osd_get_type
+  (c-name "osm_gps_map_osd_get_type")
+  (return-type "GType")
+)
+
+(define-method render
+  (of-object "OsmGpsMapOsd")
+  (c-name "osm_gps_map_osd_render")
+  (return-type "none")
+  (parameters
+    '("OsmGpsMap*" "map")
+  )
+)
+
+(define-method draw
+  (of-object "OsmGpsMapOsd")
+  (c-name "osm_gps_map_osd_draw")
+  (return-type "none")
+  (parameters
+    '("OsmGpsMap*" "map")
+    '("GdkDrawable*" "drawable")
+  )
+)
+
+(define-method busy
+  (of-object "OsmGpsMapOsd")
+  (c-name "osm_gps_map_osd_busy")
+  (return-type "gboolean")
+)
+
+(define-method button_press
+  (of-object "OsmGpsMapOsd")
+  (c-name "osm_gps_map_osd_button_press")
+  (return-type "gboolean")
+  (parameters
+    '("OsmGpsMap*" "map")
+    '("GdkEventButton*" "event")
+  )
+)

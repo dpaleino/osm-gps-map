@@ -42,9 +42,12 @@ class UI(gtk.Window):
         self.vbox = gtk.VBox(False, 0)
         self.add(self.vbox)
 
+        self.osd = osmgpsmap.GpsMapOsdClassic()
         self.osm = osmgpsmap.GpsMap(
             tile_cache=osmgpsmap.get_default_cache_directory(),
         )
+        self.osm.enable_osd(self.osd)
+
         self.osm.connect('button_release_event', self.map_clicked)
 
         #connect keyboard shortcuts
