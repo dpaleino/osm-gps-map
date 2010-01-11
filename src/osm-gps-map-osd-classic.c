@@ -68,6 +68,12 @@ static void                 crosshair_draw(OsdCrosshair_t *crosshair, GtkAllocat
 static void                 controls_render(OsmGpsMap *map, OsdControls_t *controls);
 static void                 controls_draw(OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr);
 
+//FIXME: These settings should be GObject properties
+static gboolean do_dpad = TRUE;
+static gboolean do_zoom = TRUE;
+static gboolean do_gps_in_dpad = TRUE;
+static gboolean do_gps_in_zoom = TRUE;
+
 //FIXME: These should be goject properties
 #define OSD_SCALE_FONT_SIZE (12.0)
 #define OSD_SCALE_W   (10*OSD_SCALE_FONT_SIZE)
@@ -288,10 +294,12 @@ osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
         if(OSD_Y < 0)
             my -= (allocation->height - OSD_H);
 
-        /* first do a rough test for the OSD area. */
-        /* this is just to avoid an unnecessary detailed test */
-        if(mx > 0 && mx < OSD_W && my > 0 && my < OSD_H) {
-            but = osd_check_dpad(mx, my, D_RAD);
+        if (do_dpad) {
+            /* first do a rough test for the OSD area. */
+            /* this is just to avoid an unnecessary detailed test */
+            if(mx > 0 && mx < OSD_W && my > 0 && my < OSD_H) {
+                but = osd_check_dpad(mx, my, D_RAD, do_gps_in_dpad);
+            }
         }
     }
 
@@ -311,6 +319,10 @@ osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
         case OSD_DOWN:
             osm_gps_map_scroll(map, 0, 5);
             handled = TRUE;
+            break;
+        case OSD_GPS:
+        default:
+            handled = FALSE;
             break;
     }
 
@@ -591,10 +603,6 @@ controls_render(OsmGpsMap *map, OsdControls_t *controls)
     GdkColor fg = GTK_WIDGET(map)->style->fg[GTK_STATE_NORMAL];
     GdkColor da = GTK_WIDGET(map)->style->fg[GTK_STATE_INSENSITIVE];
 
-    /* settings */
-    gboolean do_dpad = TRUE;
-    gboolean do_zoom = TRUE;
-
     /* first fill with transparency */
     g_assert(controls->surface);
     cairo_t *cr = cairo_create(controls->surface);
@@ -610,20 +618,27 @@ controls_render(OsmGpsMap *map, OsdControls_t *controls)
 
     /* --------- draw dpad ----------- */
     if (do_dpad) {
-        osd_render_dpad(cr, x, y, D_RAD, 0 /*gps_w*/, OSD_SHADOW /*shadow*/, &bg, &fg);
+        gint gps_w = (do_gps_in_dpad ? D_RAD/2 : 0);
+        osd_render_dpad(cr, x, y, D_RAD, gps_w, OSD_SHADOW /*shadow*/, &bg, &fg);
+        if (do_gps_in_dpad) {
+            gint gps_x = x+D_RAD-(gps_w/2);
+            gint gps_y = y+D_RAD-(gps_w/2);
+            osd_render_gps(cr, gps_x, gps_y, gps_w, &bg, &fg);
+        }
         y += (2*D_RAD);
     }
 
     /* --------- draw zoom ----------- */
     if (do_zoom) {
-        osd_render_zoom(cr, x, y, zoom_w, zoom_h, 0 /*gps_w*/, OSD_SHADOW /*shadow*/, &bg, &fg);
+        gint gps_w = (do_gps_in_zoom ? D_RAD/2 : 0);
+        osd_render_zoom(cr, x, y, zoom_w, zoom_h, gps_w, OSD_SHADOW /*shadow*/, &bg, &fg);
+        if (do_gps_in_zoom) {
+            gint gps_x = x+(zoom_w/2);
+            gint gps_y = y+(zoom_h/2)-(gps_w/2);
+            osd_render_gps(cr, gps_x, gps_y, gps_w, &bg, &fg);
+        }
         y += zoom_h;
     }
-
-    osd_dpad_gps(cr, 10, 10, D_RAD, &bg, &fg);
-    cairo_stroke(cr);
-
-    g_print("----------- %d,%d\n", D_RAD, zoom_h);
 
 }
 
@@ -639,8 +654,6 @@ controls_draw(OsdControls_t *controls, GtkAllocation *allocation, cairo_t *cr)
     y = OSD_Y;
     if(y < 0)
         y += allocation->height - OSD_H;
-
-    g_print("$$$$$$$$$$$ %d\n", OSD_W);
 
     cairo_set_source_surface(cr, controls->surface, x, y);
     cairo_paint(cr);

@@ -283,20 +283,17 @@ osm_gps_map_in_circle(gint x, gint y, gint cx, gint cy, gint rad)
 }
 
 OsdControlPress_t
-osd_check_dpad(gint x, gint y, gint r) 
+osd_check_dpad(gint x, gint y, gint r, gboolean has_gps) 
 {
     /* within entire dpad circle */
-    if( osm_gps_map_in_circle(x, y, r, r, r)) 
-    {
+    if( osm_gps_map_in_circle(x, y, r, r, r)) {
         /* convert into position relative to dpads centre */
         x -= r;
         y -= r;
 
-//#ifdef OSD_GPS_BUTTON
-//        /* check for dpad center goes here! */
-//        if( osm_gps_map_in_circle(x, y, 0, 0, r/3)) 
-//            return OSD_GPS;
-//#endif
+        if (has_gps)
+            if( osm_gps_map_in_circle(x, y, 0, 0, r/3)) 
+                return OSD_GPS;
 
         if( y < 0 && abs(x) < abs(y))
             return OSD_UP;
@@ -315,19 +312,19 @@ osd_check_dpad(gint x, gint y, gint r)
 
 /* draw a satellite receiver dish */
 void
-osd_dpad_gps(cairo_t *cr, gint x, gint y, gint r, GdkColor *bg, GdkColor *fg) {
+osd_render_gps(cairo_t *cr, gint x, gint y, gint w, GdkColor *bg, GdkColor *fg) {
 
     gint ox = x;
     gint oy = y;
 
     /* these define the gps widget shape */
-    double GPS_V0 = 1.5*r/7.0;
-    double GPS_V1 = 1.5*r/10.0;
-    double GPS_V2 = 1.5*r/5.0;
+    double GPS_V0 = 1.5*w/7.0;
+    double GPS_V1 = 1.5*w/10.0;
+    double GPS_V2 = 1.5*w/5.0;
 
     /* move reference to bounding box center */
-    x += (2*r/5);
-    y += (2*r/3);
+    x += (2*w/5);
+    y += (2*w/3);
 
     cairo_move_to (cr, x-GPS_V0, y+GPS_V0);
     cairo_rel_line_to (cr, +GPS_V0, -GPS_V0);
@@ -344,6 +341,6 @@ osd_dpad_gps(cairo_t *cr, gint x, gint y, gint r, GdkColor *bg, GdkColor *fg) {
 
     osd_shape(cr, bg, fg);
 
-    debug_bbox(cr, ox, oy, r, r);
+    debug_bbox(cr, ox, oy, w, w);
 }
 

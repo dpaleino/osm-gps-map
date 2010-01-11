@@ -29,7 +29,8 @@ typedef enum {
     OSD_UP,
     OSD_DOWN,
     OSD_LEFT,
-    OSD_RIGHT
+    OSD_RIGHT,
+    OSD_GPS
 } OsdControlPress_t;
 
 char *osd_latitude_str(float latitude);
@@ -42,8 +43,8 @@ void osd_render_zoom(cairo_t *cr, gint x, gint y, gint w, gint h, gint gps, gint
 void osd_render_dpad(cairo_t *cr, gint x, gint y, gint r, gint gps, gint shadow, GdkColor *bg, GdkColor *fg);
 void osd_draw_bbox(cairo_t *cr, gint x, gint y, gint w, gint h);
 gboolean osm_gps_map_in_circle(gint x, gint y, gint cx, gint cy, gint rad);
-OsdControlPress_t osd_check_dpad(gint x, gint y, gint r);
-void osd_dpad_gps(cairo_t *cr, gint x, gint y, gint r, GdkColor *bg, GdkColor *fg);
+OsdControlPress_t osd_check_dpad(gint x, gint y, gint r, gboolean has_gps);
+void osd_render_gps(cairo_t *cr, gint x, gint y, gint r, GdkColor *bg, GdkColor *fg);
 
 
 #endif /* __OSD_UTILS_H__ */
