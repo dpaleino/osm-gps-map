@@ -253,6 +253,7 @@ main (int argc, char **argv)
                         "show-zoom",TRUE,
                         "show-gps-in-dpad",TRUE,
                         "show-gps-in-zoom",FALSE,
+                        "dpad-radius", 30,
                         NULL);
     osm_gps_map_enable_osd(OSM_GPS_MAP(map), osd);
     g_object_unref(G_OBJECT(osd));

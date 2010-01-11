@@ -70,6 +70,9 @@ struct _OsmGpsMapOsdClassicPrivate
     guint               osd_w;
     guint               osd_h;
     guint               osd_shadow;
+    guint               osd_pad;
+    guint               zoom_w;
+    guint               zoom_h;
 
     /* properties */
     gint                osd_x;
@@ -98,7 +101,8 @@ static void                 crosshair_draw                       (OsmGpsMapOsdCl
 static void                 controls_render                      (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
 static void                 controls_draw                        (OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr);
 
-//FIXME: These should be private properties
+#define OSD_MAX_SHADOW (4)
+
 #define OSD_SCALE_FONT_SIZE (12.0)
 #define OSD_SCALE_W   (10*OSD_SCALE_FONT_SIZE)
 #define OSD_SCALE_H   (5*OSD_SCALE_FONT_SIZE/2)
@@ -119,16 +123,6 @@ static void                 controls_draw                        (OsmGpsMapOsdCl
 #define OSD_CROSSHAIR_BORDER (OSD_CROSSHAIR_TICK + OSD_CROSSHAIR_RADIUS/4)
 #define OSD_CROSSHAIR_W  ((OSD_CROSSHAIR_RADIUS+OSD_CROSSHAIR_BORDER)*2)
 #define OSD_CROSSHAIR_H  ((OSD_CROSSHAIR_RADIUS+OSD_CROSSHAIR_BORDER)*2)
-
-/* parameters of dpad */
-#define D_RAD  (30)
-
-/* parameters of the "zoom" pad */
-#define Z_STEP   (D_RAD/4)  // distance between dpad and zoom
-#define Z_RAD    (D_RAD/2)  // radius of "caps" of zoom bar
-
-/* shadow also depends on control size */
-#define OSD_SHADOW (D_RAD/8)
 
 static void
 osm_gps_map_osd_classic_get_property (GObject    *object,
@@ -224,9 +218,19 @@ osm_gps_map_osd_classic_constructor (GType gtype, guint n_properties, GObjectCon
     object = G_OBJECT_CLASS(osm_gps_map_osd_classic_parent_class)->constructor(gtype, n_properties, properties);
     priv = OSM_GPS_MAP_OSD_CLASSIC(object)->priv;
 
-/* total width and height of controls incl. shadow */
-    priv->osd_w = 2*D_RAD + OSD_SHADOW + 2*Z_RAD;
-    priv->osd_h = 2*D_RAD + Z_STEP + 2*Z_RAD + OSD_SHADOW;
+    /* shadow also depends on control size */
+    priv->osd_shadow = MAX(priv->dpad_radius/8, OSD_MAX_SHADOW);
+
+    /* distance between dpad and zoom */
+    priv->osd_pad = priv->dpad_radius/4;
+
+    /* size of zoom pad is wrt. the dpad size */
+    priv->zoom_w = 2*priv->dpad_radius;
+    priv->zoom_h = priv->dpad_radius;
+
+    /* total width and height of controls incl. shadow */
+    priv->osd_w = 2*priv->dpad_radius + priv->osd_shadow + priv->zoom_w;
+    priv->osd_h = 2*priv->dpad_radius + priv->osd_pad + priv->zoom_h + 2*priv->osd_shadow;
 
     priv->scale = g_new0(OsdScale_t, 1);
     priv->scale->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, OSD_SCALE_W, OSD_SCALE_H);
@@ -501,7 +505,7 @@ osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
             /* first do a rough test for the OSD area. */
             /* this is just to avoid an unnecessary detailed test */
             if(mx > 0 && mx < priv->osd_w && my > 0 && my < priv->osd_h) {
-                but = osd_check_dpad(mx, my, D_RAD, priv->show_gps_in_dpad);
+                but = osd_check_dpad(mx, my, priv->dpad_radius, priv->show_gps_in_dpad);
             }
         }
     }
@@ -831,32 +835,30 @@ controls_render(OsmGpsMapOsdClassic *self, OsmGpsMap *map)
 
     gint x = 1;
     gint y = 1;
-    gint zoom_w = 2*D_RAD;
-    gint zoom_h = D_RAD;
 
     /* --------- draw dpad ----------- */
     if (priv->show_dpad) {
-        gint gps_w = (priv->show_gps_in_dpad ? D_RAD/2 : 0);
-        osd_render_dpad(cr, x, y, D_RAD, gps_w, OSD_SHADOW /*shadow*/, &bg, &fg);
+        gint gps_w = (priv->show_gps_in_dpad ? priv->dpad_radius/2 : 0);
+        osd_render_dpad(cr, x, y, priv->dpad_radius, gps_w, priv->osd_shadow, &bg, &fg);
         if (priv->show_gps_in_dpad) {
-            gint gps_x = x+D_RAD-(gps_w/2);
-            gint gps_y = y+D_RAD-(gps_w/2);
+            gint gps_x = x+priv->dpad_radius-(gps_w/2);
+            gint gps_y = y+priv->dpad_radius-(gps_w/2);
             osd_render_gps(cr, gps_x, gps_y, gps_w, &bg, &fg);
         }
-        y += (2*D_RAD);
-        y += Z_STEP;    /* padding */
+        y += (2*priv->dpad_radius);
+        y += priv->osd_pad;
     }
 
     /* --------- draw zoom ----------- */
     if (priv->show_zoom) {
-        gint gps_w = (priv->show_gps_in_zoom ? D_RAD/2 : 0);
-        osd_render_zoom(cr, x, y, zoom_w, zoom_h, gps_w, OSD_SHADOW /*shadow*/, &bg, &fg);
+        gint gps_w = (priv->show_gps_in_zoom ? priv->dpad_radius/2 : 0);
+        osd_render_zoom(cr, x, y, priv->zoom_w, priv->zoom_h, gps_w, priv->osd_shadow, &bg, &fg);
         if (priv->show_gps_in_zoom) {
-            gint gps_x = x+(zoom_w/2);
-            gint gps_y = y+(zoom_h/2)-(gps_w/2);
+            gint gps_x = x+(priv->zoom_w/2);
+            gint gps_y = y+(priv->zoom_h/2)-(gps_w/2);
             osd_render_gps(cr, gps_x, gps_y, gps_w, &bg, &fg);
         }
-        y += zoom_h;
+        y += priv->zoom_h;
     }
 
 }
