@@ -310,6 +310,54 @@ osd_check_dpad(gint x, gint y, gint r, gboolean has_gps)
     return OSD_NONE;
 }
 
+OsdControlPress_t
+osd_check_zoom(gint x, gint y, guint w, guint h, guint gps_w) {
+
+//osd_zoom_shape(cairo_t *cr, gint x, gint y, gint w, gint h) {
+//gint r = h/2;   /* radius of curved ends of zoom pad */
+//
+//x += r;    
+//
+//cairo_move_to     (cr, x,           y);
+//cairo_rel_line_to (cr, w-2*r,       0);
+//cairo_arc         (cr, x+w-2*r,     y+r, r, -M_PI/2,  M_PI/2);
+//cairo_rel_line_to (cr, -(w-2*r),    0);
+//cairo_arc         (cr, x,           y+r, r,  M_PI/2, -M_PI/2);
+
+
+    /* within entire zoom area */
+    if( x > 0 && x < w && y > 0 && y < h) {
+        gint r = h/2;   /* radius of curved ends of zoom pad */
+
+        g_warning("IN ZOOM: x:%d y:%d r:%d", x, y, r);
+
+        /* within circle around (-) label */
+        if( osm_gps_map_in_circle(x, y, r, r, r))
+            return OSD_OUT;
+
+        /* within circle around (+) label */
+        if( osm_gps_map_in_circle(x, y, w-r, r, r)) 
+            return OSD_IN;
+
+//#if Z_GPS == 1
+//        /* within square around center */
+//        if( x > Z_CENTER - Z_RAD && x < Z_CENTER + Z_RAD)
+//            return OSD_GPS;
+//#endif
+//
+//        /* between center of (-) button and center of entire zoom control area */
+//        if(x > OSD_LEFT && x < D_RAD) 
+//            return OSD_OUT;
+//
+//        /* between center of (+) button and center of entire zoom control area */
+//        if(x < OSD_RIGHT && x > D_RAD) 
+//            return OSD_IN;
+    }
+ 
+    return OSD_NONE;
+}
+
+
 /* draw a satellite receiver dish */
 void
 osd_render_gps(cairo_t *cr, gint x, gint y, gint w, GdkColor *bg, GdkColor *fg) {

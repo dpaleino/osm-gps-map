@@ -90,7 +90,7 @@ struct _OsmGpsMapOsdClassicPrivate
 static void                 osm_gps_map_osd_classic_render       (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
 static void                 osm_gps_map_osd_classic_draw         (OsmGpsMapOsdClassic *self, OsmGpsMap *map, GdkDrawable *drawable);
 static gboolean             osm_gps_map_osd_classic_busy         (OsmGpsMapOsdClassic *self);
-static gboolean             osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self, OsmGpsMap *map, GdkEventButton *event);
+static gboolean             osm_gps_map_osd_classic_button_press (OsmGpsMapOsdClassic *self, OsmGpsMap *map, GdkEventButton *event);
 
 static void                 scale_render                         (OsmGpsMapOsdClassic *self, OsmGpsMap *map);
 static void                 scale_draw                           (OsmGpsMapOsdClassic *self, GtkAllocation *allocation, cairo_t *cr);
@@ -482,7 +482,7 @@ osm_gps_map_osd_classic_busy (OsmGpsMapOsdClassic *self)
 }
 
 static gboolean
-osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
+osm_gps_map_osd_classic_button_press (OsmGpsMapOsdClassic *self,
                                       OsmGpsMap *map,
                                       GdkEventButton *event)
 {
@@ -501,12 +501,16 @@ osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
         if(priv->osd_y < 0)
             my -= (allocation->height - priv->osd_h);
 
-        if (priv->show_dpad) {
-            /* first do a rough test for the OSD area. */
-            /* this is just to avoid an unnecessary detailed test */
-            if(mx > 0 && mx < priv->osd_w && my > 0 && my < priv->osd_h) {
+        /* first do a rough test for the OSD area. */
+        /* this is just to avoid an unnecessary detailed test */
+        if(mx > 0 && mx < priv->osd_w && my > 0 && my < priv->osd_h) {
+            if (priv->show_dpad) {
                 but = osd_check_dpad(mx, my, priv->dpad_radius, priv->show_gps_in_dpad);
+                my -= (2*priv->dpad_radius);
+                my -= priv->osd_pad;
             }
+            if (but == OSD_NONE && priv->show_zoom)
+                but = osd_check_zoom(mx, my, priv->zoom_w, priv->zoom_h, 0 /*show gps*/);
         }
     }
 
@@ -525,6 +529,14 @@ osm_gps_map_osd_classic_button_press (OsmGpsMapOsd *self,
             break;
         case OSD_DOWN:
             osm_gps_map_scroll(map, 0, 5);
+            handled = TRUE;
+            break;
+        case OSD_OUT:
+            osm_gps_map_zoom_out(map);
+            handled = TRUE;
+            break;
+        case OSD_IN:
+            osm_gps_map_zoom_in(map);
             handled = TRUE;
             break;
         case OSD_GPS:
