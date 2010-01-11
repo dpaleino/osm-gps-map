@@ -74,7 +74,7 @@ static gboolean do_zoom = TRUE;
 static gboolean do_gps_in_dpad = TRUE;
 static gboolean do_gps_in_zoom = TRUE;
 
-//FIXME: These should be goject properties
+//FIXME: These should be private properties
 #define OSD_SCALE_FONT_SIZE (12.0)
 #define OSD_SCALE_W   (10*OSD_SCALE_FONT_SIZE)
 #define OSD_SCALE_H   (5*OSD_SCALE_FONT_SIZE/2)
@@ -98,34 +98,20 @@ static gboolean do_gps_in_zoom = TRUE;
 #define OSD_CROSSHAIR_W  ((OSD_CROSSHAIR_RADIUS+OSD_CROSSHAIR_BORDER)*2)
 #define OSD_CROSSHAIR_H  ((OSD_CROSSHAIR_RADIUS+OSD_CROSSHAIR_BORDER)*2)
 
-#define D_RAD  (30)         // diameter of dpad
-#define D_TIP  (4*D_RAD/5)  // distance of arrow tip from dpad center
-#define D_LEN  (D_RAD/4)    // length of arrow
-#define D_WID  (D_LEN)      // width of arrow
+/* parameters of dpad */
+#define D_RAD  (30)
 
 /* parameters of the "zoom" pad */
 #define Z_STEP   (D_RAD/4)  // distance between dpad and zoom
 #define Z_RAD    (D_RAD/2)  // radius of "caps" of zoom bar
 
 /* shadow also depends on control size */
-#define OSD_SHADOW (D_RAD/6)
+#define OSD_SHADOW (D_RAD/8)
 #define OSD_LBL_SHADOW (OSD_SHADOW/2)
-
-/* normally the GPS button is in the center of the dpad. if there's */
-/* no dpad it will go into the zoom area */
-#define Z_GPS  1
 
 /* total width and height of controls incl. shadow */
 #define OSD_W    (2*D_RAD + OSD_SHADOW + 2 * Z_RAD)
 #define OSD_H    (2*D_RAD + Z_STEP + 2*Z_RAD + OSD_SHADOW)
-
-#define Z_TOP    (0)
-
-#define Z_MID    (Z_TOP + Z_RAD)
-#define Z_BOT    (Z_MID + Z_RAD)
-#define Z_LEFT   (Z_RAD)
-#define Z_RIGHT  (2 * D_RAD - Z_RAD + 2 * Z_RAD)
-#define Z_CENTER ((Z_RIGHT + Z_LEFT)/2)
 
 static void
 osm_gps_map_osd_classic_get_property (GObject    *object,
@@ -626,6 +612,7 @@ controls_render(OsmGpsMap *map, OsdControls_t *controls)
             osd_render_gps(cr, gps_x, gps_y, gps_w, &bg, &fg);
         }
         y += (2*D_RAD);
+        y += Z_STEP;    /* padding */
     }
 
     /* --------- draw zoom ----------- */
