@@ -185,7 +185,7 @@ static gchar    *replace_map_uri(OsmGpsMap *map, const gchar *uri, int zoom, int
 static void     osm_gps_map_print_images (OsmGpsMap *map);
 static void     osm_gps_map_draw_gps_point (OsmGpsMap *map);
 static void     osm_gps_map_blit_tile(OsmGpsMap *map, GdkPixbuf *pixbuf, int offset_x, int offset_y);
-#ifdef LIBSOUP22
+#if USE_LIBSOUP22
 static void     osm_gps_map_tile_download_complete (SoupMessage *msg, gpointer user_data);
 #else
 static void     osm_gps_map_tile_download_complete (SoupSession *session, SoupMessage *msg, gpointer user_data);
@@ -639,7 +639,7 @@ osm_gps_map_blit_tile(OsmGpsMap *map, GdkPixbuf *pixbuf, int offset_x, int offse
 }
 
 /* libsoup-2.2 and libsoup-2.4 use different ways to store the body data */
-#ifdef LIBSOUP22
+#if USE_LIBSOUP22
 #define  soup_message_headers_append(a,b,c) soup_message_add_header(a,b,c)
 #define MSG_RESPONSE_BODY(a)    ((a)->response.body)
 #define MSG_RESPONSE_LEN(a)     ((a)->response.length)
@@ -650,7 +650,7 @@ osm_gps_map_blit_tile(OsmGpsMap *map, GdkPixbuf *pixbuf, int offset_x, int offse
 #define MSG_RESPONSE_LEN_FORMAT "%lld"
 #endif
 
-#ifdef LIBSOUP22
+#if USE_LIBSOUP22
 static void
 osm_gps_map_tile_download_complete (SoupMessage *msg, gpointer user_data)
 #else
@@ -766,7 +766,7 @@ osm_gps_map_tile_download_complete (SoupSession *session, SoupMessage *msg, gpoi
         }
         else
         {
-#ifdef LIBSOUP22
+#if USE_LIBSOUP22
             soup_session_requeue_message(dl->session, msg);
 #else
             soup_session_requeue_message(session, msg);
@@ -788,7 +788,7 @@ osm_gps_map_download_tile (OsmGpsMap *map, int zoom, int x, int y, gboolean redr
     //calculate the uri to download
     dl->uri = replace_map_uri(map, priv->repo_uri, zoom, x, y);
 
-#ifdef LIBSOUP22
+#if USE_LIBSOUP22
     dl->session = priv->soup_session;
 #endif
 
@@ -832,7 +832,7 @@ osm_gps_map_download_tile (OsmGpsMap *map, int zoom, int x, int y, gboolean redr
                 }
             }
 
-#ifdef LIBSOUP22
+#if USE_LIBSOUP22
             soup_message_headers_append(msg->request_headers, 
                                         "User-Agent", USER_AGENT);
 #endif
@@ -1322,15 +1322,17 @@ osm_gps_map_init (OsmGpsMap *object)
     for (i = 0; i < OSM_GPS_MAP_KEY_MAX; i++)
         priv->keybindings[i] = 0;
 
-#ifndef LIBSOUP22
-    //Change naumber of concurrent connections option?
-    priv->soup_session =
-        soup_session_async_new_with_options(SOUP_SESSION_USER_AGENT,
-                                            USER_AGENT, NULL);
-#else
+
+#if USE_LIBSOUP22
     /* libsoup-2.2 has no special way to set the user agent, so we */
     /* set it seperately as an extra header field for each reuest */
     priv->soup_session = soup_session_async_new();
+#else
+    /* set the user agent */
+    priv->soup_session =
+        soup_session_async_new_with_options(SOUP_SESSION_USER_AGENT,
+                                            USER_AGENT, NULL);
+
 #endif
     //Hash table which maps tile d/l URIs to SoupMessage requests
     priv->tile_queue = g_hash_table_new (g_str_hash, g_str_equal);
@@ -1513,17 +1515,15 @@ osm_gps_map_set_property (GObject *object, guint prop_id, const GValue *value, G
                 priv->proxy_uri = g_value_dup_string (value);
                 g_debug("Setting proxy server: %s", priv->proxy_uri);
 
-#ifndef LIBSOUP22
+#if USE_LIBSOUP22
+                SoupUri* uri = soup_uri_new(priv->proxy_uri);
+                g_object_set(G_OBJECT(priv->soup_session), SOUP_SESSION_PROXY_URI, uri, NULL);
+#else
                 GValue val = {0};
-
                 SoupURI* uri = soup_uri_new(priv->proxy_uri);
                 g_value_init(&val, SOUP_TYPE_URI);
                 g_value_take_boxed(&val, uri);
-
                 g_object_set_property(G_OBJECT(priv->soup_session),SOUP_SESSION_PROXY_URI,&val);
-#else
-                SoupUri* uri = soup_uri_new(priv->proxy_uri);
-                g_object_set(G_OBJECT(priv->soup_session), SOUP_SESSION_PROXY_URI, uri, NULL);
 #endif
             } else
                 priv->proxy_uri = NULL;
